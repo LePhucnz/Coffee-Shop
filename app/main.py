@@ -1,8 +1,10 @@
 import os
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request
+from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+from fastapi.templating import Jinja2Templates
 
 from app.config import settings, BASE_DIR
 from app.database import engine, Base, SessionLocal
@@ -38,12 +40,40 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-frontend_dir = os.path.join(BASE_DIR, "frontend")
-if os.path.exists(frontend_dir):
-    app.mount("/frontend", StaticFiles(directory=frontend_dir, html=True), name="frontend")
+static_dir = os.path.join(BASE_DIR, "app", "static")
+templates_dir = os.path.join(BASE_DIR, "app", "templates")
+app.mount("/static", StaticFiles(directory=static_dir), name="static")
+
+templates = Jinja2Templates(directory=templates_dir)
 
 # Đăng ký API Routers
 app.include_router(auth_router)
 app.include_router(employees_router)
 app.include_router(contracts_router)
 app.include_router(system_router)
+
+# UI Routes (Giao diện người dùng render bằng Jinja2)
+@app.get("/", response_class=HTMLResponse)
+def index_page(request: Request):
+    return templates.TemplateResponse(request=request, name="index.html", context={"title": "QL Ca Làm - Trang chủ"})
+
+@app.get("/login", response_class=HTMLResponse)
+def login_page(request: Request):
+    return templates.TemplateResponse(request=request, name="login.html", context={"title": "Đăng nhập"})
+
+@app.get("/register", response_class=HTMLResponse)
+def register_page(request: Request):
+    return templates.TemplateResponse(request=request, name="register.html", context={"title": "Đăng ký"})
+
+@app.get("/forgot-password", response_class=HTMLResponse)
+def forgot_password_page(request: Request):
+    return templates.TemplateResponse(request=request, name="forgot-password.html", context={"title": "Quên mật khẩu"})
+
+@app.get("/reset-password", response_class=HTMLResponse)
+def reset_password_page(request: Request):
+    return templates.TemplateResponse(request=request, name="reset-password.html", context={"title": "Đặt lại mật khẩu"})
+
+@app.get("/dashboard", response_class=HTMLResponse)
+def dashboard_page(request: Request):
+    return templates.TemplateResponse(request=request, name="dashboard.html", context={"title": "Bảng điều khiển"})
+

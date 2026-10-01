@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tổng quan quán - QL Ca Làm</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>☕</text></svg>">
+</head>
+<body class="bg-[#fbf8f4] text-[#18181b] min-h-screen flex selection:bg-amber-100 selection:text-amber-900">
+
+    <!-- SIDEBAR (Dark Rich Coffee Espresso Theme) -->
+    <aside class="w-64 bg-[#1c1510] text-[#a19991] flex flex-col justify-between shrink-0 min-h-screen p-5 border-r border-[#2d221a]">
+        <div>
+            <!-- Brand Logo -->
+            <div class="flex items-center gap-3 px-2 py-3 mb-6">
+                <div class="w-9 h-9 rounded-xl bg-[#cf6800] flex items-center justify-center text-white shadow-md shadow-orange-600/30">
+                    <svg class="w-5 h-5 fill-current" viewBox="0 0 24 24">
+                        <path d="M2 21h18v-2H2v2zM20 8h-2V5h2c1.1 0 2 .9 2 2v1c0 1.1-.9 2-2 2zm0-5H4c-1.1 0-2 .9-2 2v10c0 2.2 1.8 4 4 4h10c2.2 0 4-1.8 4-4v-3h2c2.2 0 4-1.8 4-4V7c0-2.2-1.8-4-4-4zm-4 12c0 1.1-.9 2-2 2H6c-1.1 0-2-.9-2-2V5h12v10z"/>
+                    </svg>
+                </div>
+                <span class="text-xl font-bold tracking-tight text-white">QL Ca Làm</span>
+            </div>
+
+            <!-- Navigation Links -->
+            <nav class="space-y-1.5">
+                <!-- 1. Tổng quan (Active) -->
+                <a href="/dashboard" class="sidebar-link active">
+                    <svg class="w-5 h-5 text-[#cf6800]" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <rect x="3" y="3" width="7" height="7" rx="1.5"></rect>
+                        <rect x="14" y="3" width="7" height="7" rx="1.5"></rect>
+                        <rect x="14" y="14" width="7" height="7" rx="1.5"></rect>
+                        <rect x="3" y="14" width="7" height="7" rx="1.5"></rect>
+                    </svg>
+                    <span>Tổng quan</span>
+                    <span class="sidebar-indicator"></span>
+                </a>
+
+                <!-- 2. Nhân sự -->
+                <a href="#employees" class="sidebar-link">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"></path>
+                        <circle cx="9" cy="7" r="4"></circle>
+                        <path d="M23 21v-2a4 4 0 00-3-3.87"></path>
+                        <path d="M16 3.13a4 4 0 010 7.75"></path>
+                    </svg>
+                    <span>Nhân sự</span>
+                </a>
+
+                <!-- 3. Ca -->
+                <a href="#shifts" class="sidebar-link">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                        <line x1="16" y1="2" x2="16" y2="6"></line>
+                        <line x1="8" y1="2" x2="8" y2="6"></line>
+                        <line x1="3" y1="10" x2="21" y2="10"></line>
+                    </svg>
+                    <span>Ca</span>
+                </a>
+
+                <!-- 4. Chấm công -->
+                <a href="#attendance" class="sidebar-link">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"></path>
+                        <circle cx="12" cy="10" r="3"></circle>
+                    </svg>
+                    <span>Chấm công</span>
+                </a>
+
+                <!-- 5. Lương -->
+                <a href="#payroll" class="sidebar-link">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <rect x="4" y="2" width="16" height="20" rx="2"></rect>
+                        <line x1="8" y1="6" x2="16" y2="6"></line>
+                        <line x1="16" y1="14" x2="16" y2="18"></line>
+                        <path d="M16 10h.01M12 10h.01M8 10h.01M12 14h.01M8 14h.01M12 18h.01M8 18h.01"></path>
+                    </svg>
+                    <span>Lương</span>
+                </a>
+
+                <!-- 6. Báo cáo -->
+                <a href="#reports" class="sidebar-link">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <line x1="18" y1="20" x2="18" y2="10"></line>
+                        <line x1="12" y1="20" x2="12" y2="4"></line>
+                        <line x1="6" y1="20" x2="6" y2="14"></line>
+                    </svg>
+                    <span>Báo cáo</span>
+                </a>
+            </nav>
+        </div>
+
+        <!-- Bottom User Profile Card -->
+        <div class="bg-[#281e17] rounded-2xl p-3.5 border border-white/5 flex items-center gap-3">
+            <div class="w-9 h-9 rounded-full bg-[#cf6800] text-white flex items-center justify-center font-bold text-sm shrink-0">
+                M
+            </div>
+            <div class="min-w-0 flex-1">
+                <div class="text-sm font-bold text-white truncate">Trần Thị B</div>
+                <div class="text-[11px] text-[#a19991] truncate">Quản lý cửa hàng</div>
+            </div>
+            <a href="/login" title="Đăng xuất" class="text-stone-500 hover:text-stone-300 text-xs">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path>
+                </svg>
+            </a>
+        </div>
+    </aside>
+
+    <!-- MAIN CONTENT AREA -->
+    <main class="flex-1 p-8 lg:p-10 overflow-y-auto">
+        <!-- Top Header -->
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-[#f0e9df]">
+            <div>
+                <h1 class="text-3xl font-extrabold text-[#18181b] tracking-tight">Tổng quan quán</h1>
+                <p id="current-date-label" class="text-sm text-[#71717a] mt-1 font-medium">
+                    Hôm nay, Thứ Hai 15 tháng 06, 2026
+                </p>
+            </div>
+            <div>
+                <span class="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-white border border-[#e5e0d8] text-xs font-semibold text-[#18181b] shadow-sm">
+                    <span class="w-2 h-2 rounded-full bg-[#16a34a] animate-pulse"></span>
+                    Ca sáng trực tuyến
+                </span>
+            </div>
+        </div>
+
+        <!-- 3 Stats Cards -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mt-6">
+            <!-- Stat 1: Nhân viên -->
+            <div class="dash-card p-6">
+                <span class="text-xs font-bold text-[#71717a] uppercase tracking-wider block">
+                    NHÂN VIÊN
+                </span>
+                <div class="text-3xl font-extrabold text-[#18181b] mt-2 tracking-tight">
+                    18 NV
+                </div>
+            </div>
+
+            <!-- Stat 2: Ca làm hôm nay -->
+            <div class="dash-card p-6">
+                <span class="text-xs font-bold text-[#71717a] uppercase tracking-wider block">
+                    CA LÀM HÔM NAY
+                </span>
+                <div class="text-3xl font-extrabold text-[#18181b] mt-2 tracking-tight">
+                    6 Ca
+                </div>
+            </div>
+
+            <!-- Stat 3: Thiếu nhân sự (Alert Card) -->
+            <div class="dash-card-alert p-6">
+                <span class="text-xs font-bold text-[#dc2626] uppercase tracking-wider block">
+                    THIẾU NHÂN SỰ
+                </span>
+                <div class="text-3xl font-extrabold text-[#dc2626] mt-2 tracking-tight">
+                    2 Thiếu ca
+                </div>
+            </div>
+        </div>
+
+        <!-- Middle Card: Bar Chart (Xu hướng giờ làm 30 ngày gần nhất) -->
+        <div class="dash-card p-7 mt-6 relative">
+            <div class="flex items-center justify-between mb-6">
+                <h2 class="text-base font-bold text-[#18181b]">
+                    Xu hướng giờ làm (30 ngày gần nhất)
+                </h2>
+                <!-- Interactive tooltip preview -->
+                <div id="chart-tooltip" class="text-xs font-medium text-[#cf6800] bg-amber-50 border border-amber-200 px-3 py-1 rounded-lg opacity-0 transition-opacity">
+                    -
+                </div>
+            </div>
+
+            <!-- 12 Bars Container -->
+            <div class="h-64 flex items-end justify-between gap-2 sm:gap-4 pt-4 border-b border-[#f0e9df]">
+                <!-- T1 -->
+                <div class="chart-bar-container">
+                    <div class="chart-bar" style="height: 45%;" data-label="1" data-hours="112"></div>
+                    <span class="text-xs text-[#71717a] font-medium">T1</span>
+                </div>
+                <!-- T2 -->
+                <div class="chart-bar-container">
+                    <div class="chart-bar" style="height: 55%;" data-label="2" data-hours="128"></div>
+                    <span class="text-xs text-[#71717a] font-medium">T2</span>
+                </div>
+                <!-- T3 -->
+                <div class="chart-bar-container">
+                    <div class="chart-bar" style="height: 65%;" data-label="3" data-hours="142"></div>
+                    <span class="text-xs text-[#71717a] font-medium">T3</span>
+                </div>
+                <!-- T4 -->
+                <div class="chart-bar-container">
+                    <div class="chart-bar" style="height: 50%;" data-label="4" data-hours="120"></div>
+                    <span class="text-xs text-[#71717a] font-medium">T4</span>
+                </div>
+                <!-- T5 -->
+                <div class="chart-bar-container">
+                    <div class="chart-bar" style="height: 75%;" data-label="5" data-hours="160"></div>
+                    <span class="text-xs text-[#71717a] font-medium">T5</span>
+                </div>
+                <!-- T6 -->
+                <div class="chart-bar-container">
+                    <div class="chart-bar" style="height: 80%;" data-label="6" data-hours="175"></div>
+                    <span class="text-xs text-[#71717a] font-medium">T6</span>
+                </div>
+                <!-- T7 -->
+                <div class="chart-bar-container">
+                    <div class="chart-bar" style="height: 70%;" data-label="7" data-hours="155"></div>
+                    <span class="text-xs text-[#71717a] font-medium">T7</span>
+                </div>
+                <!-- T8 -->
+                <div class="chart-bar-container">
+                    <div class="chart-bar" style="height: 60%;" data-label="8" data-hours="138"></div>
+                    <span class="text-xs text-[#71717a] font-medium">T8</span>
+                </div>
+                <!-- T9 -->
+                <div class="chart-bar-container">
+                    <div class="chart-bar" style="height: 82%;" data-label="9" data-hours="178"></div>
+                    <span class="text-xs text-[#71717a] font-medium">T9</span>
+                </div>
+                <!-- T10 -->
+                <div class="chart-bar-container">
+                    <div class="chart-bar" style="height: 88%;" data-label="10" data-hours="192"></div>
+                    <span class="text-xs text-[#71717a] font-medium">T10</span>
+                </div>
+                <!-- T11 -->
+                <div class="chart-bar-container">
+                    <div class="chart-bar" style="height: 78%;" data-label="11" data-hours="168"></div>
+                    <span class="text-xs text-[#71717a] font-medium">T11</span>
+                </div>
+                <!-- T12 -->
+                <div class="chart-bar-container">
+                    <div class="chart-bar" style="height: 85%;" data-label="12" data-hours="185"></div>
+                    <span class="text-xs text-[#71717a] font-medium">T12</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Bottom Card: Lịch trình hôm nay -->
+        <div class="dash-card p-7 mt-6">
+            <h2 class="text-base font-bold text-[#18181b] mb-4">
+                Lịch trình hôm nay
+            </h2>
+
+            <div class="w-full overflow-x-auto">
+                <table class="w-full text-left border-collapse">
+                    <thead>
+                        <tr class="bg-[#eee7db]/80 text-xs font-bold text-[#52525b] rounded-xl overflow-hidden">
+                            <th class="py-3 px-5 rounded-l-xl">Nhân viên</th>
+                            <th class="py-3 px-5">Ca</th>
+                            <th class="py-3 px-5 text-right rounded-r-xl">Trạng thái</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-[#f5efe6] text-sm">
+                        <!-- Row 1 -->
+                        <tr class="hover:bg-[#faf7f2] transition-colors">
+                            <td class="py-3.5 px-5 font-semibold text-[#18181b]">Nguyễn Văn A</td>
+                            <td class="py-3.5 px-5 text-[#52525b]">Ca Sáng (06:00 - 14:00)</td>
+                            <td class="py-3.5 px-5 text-right">
+                                <span class="badge-status-working">Đang làm</span>
+                            </td>
+                        </tr>
+                        <!-- Row 2 -->
+                        <tr class="hover:bg-[#faf7f2] transition-colors">
+                            <td class="py-3.5 px-5 font-semibold text-[#18181b]">Trần Thị B</td>
+                            <td class="py-3.5 px-5 text-[#52525b]">Ca Chiều (14:00 - 22:00)</td>
+                            <td class="py-3.5 px-5 text-right">
+                                <span class="badge-status-waiting">Chưa vào</span>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Quick Shortcuts Row -->
+        <div class="mt-8 flex flex-wrap items-center gap-3">
+            <span class="text-sm font-bold text-[#18181b] mr-2">Lối tắt nhanh:</span>
+            <a href="#report-detail" class="btn-outline-brand shortcut-btn">Báo cáo chi tiết</a>
+            <a href="#timesheet" class="btn-outline-brand shortcut-btn">Xem bảng công</a>
+            <a href="#monthly-salary" class="btn-outline-brand shortcut-btn">Tính lương tháng</a>
+        </div>
+    </main>
+
+    <script src="/static/js/dashboard.js"></script>
+</body>
+</html>
