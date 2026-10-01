@@ -62,16 +62,16 @@ def index_page():
 
 @app.get("/login", response_class=HTMLResponse)
 def login_page(request: Request):
-    return templates.TemplateResponse("login.html", {"request": request, "title": "Đăng nhập hệ thống"})
+    return templates.TemplateResponse(request, "login.html", {"title": "Đăng nhập hệ thống"})
 
 @app.get("/dashboard", response_class=HTMLResponse)
 def dashboard_page(request: Request):
-    return templates.TemplateResponse("dashboard.html", {"request": request, "title": "Bảng điều khiển"})
+    return templates.TemplateResponse(request, "dashboard.html", {"title": "Bảng điều khiển"})
 
 @app.get("/employees", response_class=HTMLResponse)
 def employees_page(request: Request):
-    return templates.TemplateResponse("employees.html", {"request": request, "title": "Quản lý Hồ sơ Nhân sự"})
+    return templates.TemplateResponse(request, "employees.html", {"title": "Quản lý Hồ sơ Nhân sự"})
 
 @app.get("/contracts", response_class=HTMLResponse)
 def contracts_page(request: Request):
-    return templates.TemplateResponse("contracts.html", {"request": request, "title": "Quản lý Hợp đồng Lao động"})
+    return templates.TemplateResponse(request, "contracts.html", {"title": "Quản lý Hợp đồng Lao động"})
