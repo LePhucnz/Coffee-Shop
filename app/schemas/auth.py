@@ -22,9 +22,20 @@ class RegisterRequest(BaseModel):
 class ForgotPasswordRequest(BaseModel):
     email: str
 
+class ForgotPasswordResponse(BaseModel):
+    success: bool
+    message: str
+    reset_token: Optional[str] = None
+    reset_url: Optional[str] = None
+
 class ResetPasswordRequest(BaseModel):
+    token: Optional[str] = None
     email: Optional[str] = None
-    mat_khau: str = Field(..., min_length=8, description="Tối thiểu 8 ký tự")
+    mat_khau: str = Field(..., min_length=8, description="Tối thiểu 8 ký tự gồm cả chữ và số")
+
+class ResetPasswordResponse(BaseModel):
+    success: bool
+    message: str
 
 class UserResponse(BaseModel):
     id: int

@@ -4,15 +4,18 @@ from fastapi import APIRouter, Depends, HTTPException, status, Request
 from sqlalchemy.orm import Session
 from app.database import get_db
 from app.core.deps import get_current_user, require_roles
-from app.core.security import decode_token, create_access_token
+from app.core.security import (
+    decode_token, create_access_token, get_password_hash,
+    create_reset_token, validate_password_complexity
+)
 from app.models.user import TaiKhoan, LichSuDangNhap
 from app.schemas.auth import (
     LoginRequest, TokenResponse, RefreshTokenRequest,
     RegisterRequest, UserResponse, LoginHistoryResponse, ToggleActiveRequest,
-    ForgotPasswordRequest, ResetPasswordRequest
+    ForgotPasswordRequest, ForgotPasswordResponse,
+    ResetPasswordRequest, ResetPasswordResponse
 )
 from app.services.auth_service import AuthService
-from app.core.security import get_password_hash
 from app.config import settings
 
 router = APIRouter(prefix="/api/auth", tags=["Xác thực & Phân quyền (Auth)"])
@@ -36,8 +39,8 @@ def register(data: RegisterRequest, db: Session = Depends(get_db)):
         if data.email:
             base_name = data.email.split("@")[0].lower()
             # Đảm bảo tối thiểu 3 ký tự
-            if len(base_name) < 3:
-                base_name = f"{base_name}123"
+            if len(base_name) :
+                base_name = f"{base_name}"
             ten_dang_nhap = base_name
         elif data.ho_ten:
             ten_dang_nhap = data.ho_ten.lower().replace(" ", "")
@@ -71,40 +74,90 @@ def register(data: RegisterRequest, db: Session = Depends(get_db)):
         trang_thai_nhan_vien=user.nhan_vien.trang_thai if user.nhan_vien else None
     )
 
-@router.post("/forgot-password")
+@router.post("/forgot-password", response_model=ForgotPasswordResponse)
 def forgot_password(data: ForgotPasswordRequest, db: Session = Depends(get_db)):
-    """Xử lý yêu cầu quên mật khẩu: gửi liên kết hoặc mã xác nhận"""
+    """
+    Xử lý yêu cầu quên mật khẩu:
+    - Kiểm tra email tồn tại trong hệ thống
+    - Sinh mã reset token bảo mật (hạn dùng 15 phút)
+    - Trả về thông báo kèm reset_token và reset_url
+    """
     email = data.email.strip().lower()
     from app.models.employee import NhanVien
     user = db.query(TaiKhoan).outerjoin(NhanVien, TaiKhoan.ma_nv == NhanVien.id).filter(
         NhanVien.email == email
     ).first()
-    # Dù email có tồn tại hay không, trả về thông báo an toàn
-    return {
-        "success": True,
-        "message": f"Liên kết đặt lại mật khẩu đã được gửi đến email {email}. Vui lòng kiểm tra hộp thư."
-    }
 
-@router.post("/reset-password")
+    if not user:
+        return ForgotPasswordResponse(
+            success=True,
+            message=f"Nếu email {email} tồn tại trong hệ thống, hướng dẫn đặt lại mật khẩu đã được gửi đến hộp thư.",
+            reset_token=None,
+            reset_url=None
+        )
+
+    reset_token = create_reset_token(email)
+    reset_url = f"/reset-password?token={reset_token}"
+
+    return ForgotPasswordResponse(
+        success=True,
+        message=f"Liên kết đặt lại mật khẩu đã được gửi đến email {email}. Vui lòng kiểm tra hộp thư.",
+        reset_token=reset_token,
+        reset_url=reset_url
+    )
+
+@router.post("/reset-password", response_model=ResetPasswordResponse)
 def reset_password(data: ResetPasswordRequest, db: Session = Depends(get_db)):
-    """Đặt lại mật khẩu mới"""
-    if len(data.mat_khau) < 8:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Mật khẩu tối thiểu 8 ký tự")
+    """
+    Đặt lại mật khẩu mới:
+    - Hỗ trợ xác thực qua token hoặc email
+    - Kiểm tra độ phức tạp mật khẩu mới (≥ 8 ký tự, gồm cả chữ và số)
+    - Cập nhật mật khẩu băm bcrypt và mở khóa tài khoản
+    """
+    if not validate_password_complexity(data.mat_khau):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Mật khẩu phải có độ dài tối thiểu 8 ký tự và bao gồm cả chữ cái lẫn chữ số"
+        )
     
-    if data.email:
-        from app.models.employee import NhanVien
-        user = db.query(TaiKhoan).outerjoin(NhanVien, TaiKhoan.ma_nv == NhanVien.id).filter(
-            NhanVien.email == data.email.strip().lower()
-        ).first()
-        if user:
-            user.mat_khau = get_password_hash(data.mat_khau)
-            user.so_lan_dang_nhap_sai = 0
-            user.lockout_until = None
-            db.commit()
-    return {
-        "success": True,
-        "message": "Đặt lại mật khẩu thành công! Bạn có thể đăng nhập ngay bây giờ."
-    }
+    target_email = None
+    if data.token:
+        payload = decode_token(data.token)
+        if not payload or payload.get("type") != "reset_password":
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Mã token đặt lại mật khẩu không hợp lệ hoặc đã hết hạn"
+            )
+        target_email = payload.get("sub")
+    elif data.email:
+        target_email = data.email.strip().lower()
+    else:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Vui lòng cung cấp mã token hoặc email để đặt lại mật khẩu"
+        )
+
+    from app.models.employee import NhanVien
+    user = db.query(TaiKhoan).outerjoin(NhanVien, TaiKhoan.ma_nv == NhanVien.id).filter(
+        NhanVien.email == target_email
+    ).first()
+
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Không tìm thấy tài khoản liên kết với email '{target_email}'"
+        )
+
+    user.mat_khau = get_password_hash(data.mat_khau)
+    user.so_lan_dang_nhap_sai = 0
+    user.lockout_until = None
+    db.commit()
+
+    return ResetPasswordResponse(
+        success=True,
+        message="Đặt lại mật khẩu thành công! Bạn có thể đăng nhập ngay bây giờ."
+    )
+
 
 @router.post("/login", response_model=TokenResponse)
 def login(data: LoginRequest, request: Request, db: Session = Depends(get_db)):
