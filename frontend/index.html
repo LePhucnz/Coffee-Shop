@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>QL Ca Làm - Quản lý nhân sự & ca làm cho quán cà phê</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="./css/style.css">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>☕</text></svg>">
+</head>
+<body class="bg-[#fbf8f4] text-[#18181b] min-h-screen flex flex-col selection:bg-amber-100 selection:text-amber-900">
+
+    <!-- NAVBAR -->
+    <header class="w-full bg-[#fbf8f4]/90 backdrop-blur-md sticky top-0 z-50 border-b border-[#f0e9df]/60">
+        <div class="max-w-6xl mx-auto px-6 h-20 flex items-center justify-between">
+            <!-- Brand Logo -->
+            <a href="./index.html" class="flex items-center gap-3 group">
+                <div class="w-10 h-10 rounded-xl bg-[#cf6800] flex items-center justify-center text-white shadow-md shadow-orange-500/20 group-hover:scale-105 transition-transform">
+                    <svg class="w-5 h-5 fill-current" viewBox="0 0 24 24">
+                        <path d="M2 21h18v-2H2v2zM20 8h-2V5h2c1.1 0 2 .9 2 2v1c0 1.1-.9 2-2 2zm0-5H4c-1.1 0-2 .9-2 2v10c0 2.2 1.8 4 4 4h10c2.2 0 4-1.8 4-4v-3h2c2.2 0 4-1.8 4-4V7c0-2.2-1.8-4-4-4zm-4 12c0 1.1-.9 2-2 2H6c-1.1 0-2-.9-2-2V5h12v10z"/>
+                    </svg>
+                </div>
+                <span class="text-xl font-bold tracking-tight text-[#18181b]">QL Ca Làm</span>
+            </a>
+
+            <!-- Navigation Links -->
+            <nav class="hidden md:flex items-center gap-8 text-[15px] font-medium text-[#52525b]">
+                <a href="#features" class="hover:text-[#cf6800] transition-colors">Tính năng</a>
+                <a href="#about" class="hover:text-[#cf6800] transition-colors">Về chúng tôi</a>
+                <a href="#contact" class="hover:text-[#cf6800] transition-colors">Liên hệ</a>
+            </nav>
+
+            <!-- Action Buttons -->
+            <div class="flex items-center gap-4">
+                <a href="./login.html" class="text-[15px] font-semibold text-[#18181b] hover:text-[#cf6800] px-3 py-2 transition-colors">
+                    Đăng nhập
+                </a>
+                <a href="./register.html" class="btn-primary text-sm px-5 py-2.5 rounded-xl shadow-md">
+                    Dùng thử miễn phí
+                </a>
+            </div>
+        </div>
+    </header>
+
+    <!-- MAIN CONTENT -->
+    <main class="flex-1">
+        <!-- HERO SECTION -->
+        <section class="max-w-6xl mx-auto px-6 pt-12 pb-20 lg:pt-16 lg:pb-24">
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-10 items-center">
+                
+                <!-- Left Column: Copy & Form -->
+                <div class="lg:col-span-7 flex flex-col items-start">
+                    <!-- Badge -->
+                    <div class="badge-pill badge-warning mb-6">
+                        <span class="w-1.5 h-1.5 rounded-full bg-[#b45309]"></span>
+                        GIẢI PHÁP MỚI CHO NĂM 2026
+                    </div>
+
+                    <!-- Title -->
+                    <h1 class="text-4xl sm:text-5xl lg:text-[46px] font-extrabold text-[#18181b] leading-[1.18] tracking-tight">
+                        Quản lý nhân sự & ca làm cho quán cà phê — gọn trong một hệ thống
+                    </h1>
+
+                    <!-- Description -->
+                    <p class="text-base sm:text-lg text-[#52525b] mt-5 leading-relaxed">
+                        Xếp ca tự động, chấm công bằng định vị GPS, tính toán bảng lương chính xác chỉ bằng 1 lượt bấm. Tiết kiệm tới 12 giờ quản lý mỗi tuần cho chủ quán & quản lý.
+                    </p>
+
+                    <!-- Email Input & CTA Button -->
+                    <form action="./register.html" method="GET" class="w-full max-w-lg mt-8 flex flex-col sm:flex-row gap-3">
+                        <input type="email" name="email" id="hero-email" required
+                               placeholder="Nhập email của bạn..." 
+                               class="form-input flex-1 py-3 px-4 shadow-sm" />
+                        <button type="submit" class="btn-primary py-3 px-8 text-base shadow-lg shrink-0">
+                            Dùng thử
+                        </button>
+                    </form>
+
+                    <!-- Social Proof / Customer count -->
+                    <div class="mt-8 flex items-center gap-3">
+                        <div class="flex -space-x-2 overflow-hidden">
+                            <span class="inline-flex items-center justify-center w-8 h-8 rounded-full bg-amber-200 text-[#b45309] font-bold text-xs ring-2 ring-white">☕</span>
+                            <span class="inline-flex items-center justify-center w-8 h-8 rounded-full bg-orange-200 text-[#b45309] font-bold text-xs ring-2 ring-white">🌿</span>
+                            <span class="inline-flex items-center justify-center w-8 h-8 rounded-full bg-stone-200 text-stone-700 font-bold text-xs ring-2 ring-white">★</span>
+                        </div>
+                        <p class="text-xs text-[#52525b]">
+                            Hơn <strong class="font-bold text-[#18181b]">500+ thương hiệu cà phê</strong> tin dùng hàng ngày.
+                        </p>
+                    </div>
+                </div>
+
+                <!-- Right Column: Live Shift Preview Card -->
+                <div class="lg:col-span-5 flex justify-center lg:justify-end">
+                    <div class="hero-preview-card w-full max-w-md p-6 sm:p-7">
+                        <!-- Card Header -->
+                        <div class="flex items-start justify-between pb-4 border-b border-[#f3ede3]">
+                            <div>
+                                <span class="text-[11px] font-bold text-[#cf6800] uppercase tracking-wider block">
+                                    BẢNG ĐIỀU KHIỂN TUẦN
+                                </span>
+                                <h3 class="text-base font-bold text-[#18181b] mt-1">
+                                    Danh sách Ca Sáng (06:00 - 12:00)
+                                </h3>
+                            </div>
+                            <span class="badge-pill bg-[#fef3c7] text-[#b45309] text-[11px] font-semibold">
+                                Trực tuyến
+                            </span>
+                        </div>
+
+                        <!-- Card Content: Staff List -->
+                        <div class="mt-4 space-y-3">
+                            <!-- Staff 1 -->
+                            <div class="flex items-center justify-between p-3.5 rounded-xl border border-[#f3ede3] bg-[#faf8f5]/50 hover:bg-[#faf8f5] transition-colors">
+                                <div class="flex items-center gap-3">
+                                    <div class="w-10 h-10 rounded-full bg-stone-100 border border-stone-200 flex items-center justify-center font-bold text-stone-700 text-sm">
+                                        P
+                                    </div>
+                                    <div>
+                                        <div class="font-bold text-sm text-[#18181b]">Phạm Minh Hoàng</div>
+                                        <div class="text-xs text-[#71717a]">Trưởng ca (Barista)</div>
+                                    </div>
+                                </div>
+                                <div class="text-right">
+                                    <div class="text-xs font-semibold text-[#16a34a]">Đã chấm công</div>
+                                    <div class="text-[11px] text-[#a1a1aa]">05:54</div>
+                                </div>
+                            </div>
+
+                            <!-- Staff 2 -->
+                            <div class="flex items-center justify-between p-3.5 rounded-xl border border-[#f3ede3] bg-[#faf8f5]/50 hover:bg-[#faf8f5] transition-colors">
+                                <div class="flex items-center gap-3">
+                                    <div class="w-10 h-10 rounded-full bg-stone-100 border border-stone-200 flex items-center justify-center font-bold text-stone-700 text-sm">
+                                        N
+                                    </div>
+                                    <div>
+                                        <div class="font-bold text-sm text-[#18181b]">Nguyễn Thị Ngọc</div>
+                                        <div class="text-xs text-[#71717a]">Thu ngân</div>
+                                    </div>
+                                </div>
+                                <div class="text-right">
+                                    <div class="text-xs font-semibold text-[#16a34a]">Đã chấm công</div>
+                                    <div class="text-[11px] text-[#a1a1aa]">05:58</div>
+                                </div>
+                            </div>
+
+                            <!-- Staff 3 -->
+                            <div class="flex items-center justify-between p-3.5 rounded-xl border border-[#f3ede3] bg-[#faf8f5]/50 hover:bg-[#faf8f5] transition-colors">
+                                <div class="flex items-center gap-3">
+                                    <div class="w-10 h-10 rounded-full bg-stone-100 border border-stone-200 flex items-center justify-center font-bold text-stone-700 text-sm">
+                                        T
+                                    </div>
+                                    <div>
+                                        <div class="font-bold text-sm text-[#18181b]">Trần Anh Tú</div>
+                                        <div class="text-xs text-[#71717a]">Phục vụ</div>
+                                    </div>
+                                </div>
+                                <div class="text-right">
+                                    <div class="text-xs font-semibold text-[#dc2626]">Chưa đến</div>
+                                    <div class="text-[11px] text-[#a1a1aa]">- : -</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </section>
+
+        <!-- FEATURE SECTION -->
+        <section id="features" class="bg-[#f7f3ec] py-20 border-t border-[#eee6db]">
+            <div class="max-w-6xl mx-auto px-6">
+                <!-- Section Header -->
+                <div class="text-center mb-14">
+                    <span class="text-xs font-bold text-[#cf6800] uppercase tracking-widest block mb-2">
+                        TÍNH NĂNG VƯỢT TRỘI
+                    </span>
+                    <h2 class="text-3xl sm:text-4xl font-extrabold text-[#18181b] tracking-tight">
+                        Đầy đủ nghiệp vụ cho quản lý vận hành ca
+                    </h2>
+                </div>
+
+                <!-- 3 Feature Cards Grid -->
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+                    <!-- Feature Card 1 -->
+                    <div class="feature-card p-8">
+                        <div class="w-12 h-12 rounded-xl bg-[#fef3c7] text-[#cf6800] flex items-center justify-center mb-6">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                                <line x1="16" y1="2" x2="16" y2="6"></line>
+                                <line x1="8" y1="2" x2="8" y2="6"></line>
+                                <line x1="3" y1="10" x2="21" y2="10"></line>
+                                <path d="M9 16l2 2 4-4"></path>
+                            </svg>
+                        </div>
+                        <h3 class="text-xl font-bold text-[#18181b] mb-3">Xếp ca thông minh</h3>
+                        <p class="text-sm text-[#52525b] leading-relaxed">
+                            Lập lịch ca linh hoạt, phân bổ nhân viên theo kĩ năng, nguyện vọng và định mức giờ làm tối ưu.
+                        </p>
+                    </div>
+
+                    <!-- Feature Card 2 -->
+                    <div class="feature-card p-8">
+                        <div class="w-12 h-12 rounded-xl bg-[#fef3c7] text-[#cf6800] flex items-center justify-center mb-6">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"></path>
+                                <circle cx="12" cy="10" r="3"></circle>
+                            </svg>
+                        </div>
+                        <h3 class="text-xl font-bold text-[#18181b] mb-3">Chấm công GPS</h3>
+                        <p class="text-sm text-[#52525b] leading-relaxed">
+                            Nhân viên tự chấm công trực tiếp bằng điện thoại qua định vị GPS tại chi nhánh quán, nhanh gọn và chính xác.
+                        </p>
+                    </div>
+
+                    <!-- Feature Card 3 -->
+                    <div class="feature-card p-8">
+                        <div class="w-12 h-12 rounded-xl bg-[#fef3c7] text-[#cf6800] flex items-center justify-center mb-6">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                <rect x="4" y="2" width="16" height="20" rx="2"></rect>
+                                <line x1="8" y1="6" x2="16" y2="6"></line>
+                                <line x1="16" y1="14" x2="16" y2="18"></line>
+                                <path d="M16 10h.01M12 10h.01M8 10h.01M12 14h.01M8 14h.01M12 18h.01M8 18h.01"></path>
+                            </svg>
+                        </div>
+                        <h3 class="text-xl font-bold text-[#18181b] mb-3">Tính lương tự động</h3>
+                        <p class="text-sm text-[#52525b] leading-relaxed">
+                            Tự động thống kê công ca, tính lương cơ bản, thưởng, phạt cực kỳ minh bạch và rõ ràng cuối tháng.
+                        </p>
+                    </div>
+                </div>
+
+            </div>
+        </section>
+    </main>
+
+    <!-- FOOTER -->
+    <footer id="contact" class="bg-[#fbf8f4] border-t border-[#f0e9df] py-10 text-center text-xs text-[#71717a]">
+        <div class="max-w-6xl mx-auto px-6 flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div class="flex items-center gap-2">
+                <div class="w-6 h-6 rounded-md bg-[#cf6800] flex items-center justify-center text-white text-xs">☕</div>
+                <span class="font-bold text-[#18181b]">QL Ca Làm</span>
+                <span>— Hệ thống Quản lý Nhân sự & Ca làm quán Cà phê</span>
+            </div>
+            <div>
+                © 2026 Nhóm 6 - Đồ án Quản Lý Dự Án. All rights reserved.
+            </div>
+        </div>
+    </footer>
+
+</body>
+</html>

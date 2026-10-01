@@ -10,7 +10,7 @@ class RefreshTokenRequest(BaseModel):
     refresh_token: str
 
 class RegisterRequest(BaseModel):
-    ten_dang_nhap: str = Field(..., min_length=3, max_length=50)
+    ten_dang_nhap: Optional[str] = Field(None, max_length=50)
     mat_khau: str = Field(..., min_length=8, description="Tối thiểu 8 ký tự gồm cả chữ và số")
     ho_ten: str = Field(..., min_length=2, max_length=100)
     email: Optional[str] = None
@@ -18,6 +18,13 @@ class RegisterRequest(BaseModel):
     ma_vai_tro: Optional[int] = 3  # Mặc định Staff
     ma_cua_hang: Optional[int] = None
     ma_vi_tri: Optional[int] = None
+
+class ForgotPasswordRequest(BaseModel):
+    email: str
+
+class ResetPasswordRequest(BaseModel):
+    email: Optional[str] = None
+    mat_khau: str = Field(..., min_length=8, description="Tối thiểu 8 ký tự")
 
 class UserResponse(BaseModel):
     id: int
