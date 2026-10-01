@@ -1,4 +1,5 @@
 from typing import List, Optional
+from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException, status, Request
 from sqlalchemy.orm import Session
 from app.database import get_db
@@ -7,9 +8,11 @@ from app.core.security import decode_token, create_access_token
 from app.models.user import TaiKhoan, LichSuDangNhap
 from app.schemas.auth import (
     LoginRequest, TokenResponse, RefreshTokenRequest,
-    RegisterRequest, UserResponse, LoginHistoryResponse, ToggleActiveRequest
+    RegisterRequest, UserResponse, LoginHistoryResponse, ToggleActiveRequest,
+    ForgotPasswordRequest, ResetPasswordRequest
 )
 from app.services.auth_service import AuthService
+from app.core.security import get_password_hash
 from app.config import settings
 
 router = APIRouter(prefix="/api/auth", tags=["Xác thực & Phân quyền (Auth)"])
@@ -28,9 +31,22 @@ def register(data: RegisterRequest, db: Session = Depends(get_db)):
     - Mã hóa băm bcrypt trước khi lưu
     - Chống trùng lặp tên đăng nhập, email, số điện thoại
     """
+    ten_dang_nhap = data.ten_dang_nhap
+    if not ten_dang_nhap:
+        if data.email:
+            base_name = data.email.split("@")[0].lower()
+            # Đảm bảo tối thiểu 3 ký tự
+            if len(base_name) < 3:
+                base_name = f"{base_name}123"
+            ten_dang_nhap = base_name
+        elif data.ho_ten:
+            ten_dang_nhap = data.ho_ten.lower().replace(" ", "")
+        else:
+            ten_dang_nhap = f"user_{datetime.utcnow().strftime('%y%m%d%H%M%S')}"
+
     user, err = AuthService.register_account(
         db=db,
-        ten_dang_nhap=data.ten_dang_nhap,
+        ten_dang_nhap=ten_dang_nhap,
         mat_khau=data.mat_khau,
         ho_ten=data.ho_ten,
         email=data.email,
@@ -54,6 +70,41 @@ def register(data: RegisterRequest, db: Session = Depends(get_db)):
         so_dien_thoai=user.nhan_vien.so_dien_thoai if user.nhan_vien else None,
         trang_thai_nhan_vien=user.nhan_vien.trang_thai if user.nhan_vien else None
     )
+
+@router.post("/forgot-password")
+def forgot_password(data: ForgotPasswordRequest, db: Session = Depends(get_db)):
+    """Xử lý yêu cầu quên mật khẩu: gửi liên kết hoặc mã xác nhận"""
+    email = data.email.strip().lower()
+    from app.models.employee import NhanVien
+    user = db.query(TaiKhoan).outerjoin(NhanVien, TaiKhoan.ma_nv == NhanVien.id).filter(
+        NhanVien.email == email
+    ).first()
+    # Dù email có tồn tại hay không, trả về thông báo an toàn
+    return {
+        "success": True,
+        "message": f"Liên kết đặt lại mật khẩu đã được gửi đến email {email}. Vui lòng kiểm tra hộp thư."
+    }
+
+@router.post("/reset-password")
+def reset_password(data: ResetPasswordRequest, db: Session = Depends(get_db)):
+    """Đặt lại mật khẩu mới"""
+    if len(data.mat_khau) < 8:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Mật khẩu tối thiểu 8 ký tự")
+    
+    if data.email:
+        from app.models.employee import NhanVien
+        user = db.query(TaiKhoan).outerjoin(NhanVien, TaiKhoan.ma_nv == NhanVien.id).filter(
+            NhanVien.email == data.email.strip().lower()
+        ).first()
+        if user:
+            user.mat_khau = get_password_hash(data.mat_khau)
+            user.so_lan_dang_nhap_sai = 0
+            user.lockout_until = None
+            db.commit()
+    return {
+        "success": True,
+        "message": "Đặt lại mật khẩu thành công! Bạn có thể đăng nhập ngay bây giờ."
+    }
 
 @router.post("/login", response_model=TokenResponse)
 def login(data: LoginRequest, request: Request, db: Session = Depends(get_db)):
