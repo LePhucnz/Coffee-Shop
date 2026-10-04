@@ -33,6 +33,9 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     });
 
+    // Số liệu thật từ API (Sprint 3)
+    loadDashboardStats();
+
     // Quick shortcut button actions
     document.querySelectorAll(".shortcut-btn").forEach(btn => {
         btn.addEventListener("click", (e) => {
@@ -46,3 +49,21 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     });
 });
+
+async function loadDashboardStats() {
+    if (typeof API === "undefined" || !API.getUser()) return;
+    try {
+        const stats = await API.request("/api/system/stats");
+        const empEl = document.getElementById("stat-employees");
+        if (empEl) empEl.textContent = stats.active_employees;
+
+        // FR-05: Cảnh báo Admin/Manager khi có hợp đồng sắp hết hạn
+        const banner = document.getElementById("expiring-banner");
+        if (banner && API.isAdmin() && stats.expiring_contracts > 0) {
+            document.getElementById("expiring-banner-count").textContent = stats.expiring_contracts;
+            banner.classList.remove("hidden");
+        }
+    } catch (e) {
+        // Giữ nguyên giao diện nếu không lấy được thống kê
+    }
+}

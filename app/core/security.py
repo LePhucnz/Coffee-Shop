@@ -51,6 +51,17 @@ def create_refresh_token(data: Dict[str, Any], expires_delta: Optional[timedelta
     to_encode.update({"exp": expire, "iat": now, "type": "refresh"})
     return jwt.encode(to_encode, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
 
+def create_reset_token(email: str, expires_delta: Optional[timedelta] = None) -> str:
+    """Tạo JWT token xác nhận đặt lại mật khẩu (mặc định 15 phút)"""
+    to_encode = {"sub": email, "type": "reset_password"}
+    now = datetime.now(timezone.utc)
+    if expires_delta:
+        expire = now + expires_delta
+    else:
+        expire = now + timedelta(minutes=15)
+    to_encode.update({"exp": expire, "iat": now})
+    return jwt.encode(to_encode, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
+
 def decode_token(token: str) -> Optional[Dict[str, Any]]:
     try:
         payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])

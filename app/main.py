@@ -75,5 +75,19 @@ def reset_password_page(request: Request):
 
 @app.get("/dashboard", response_class=HTMLResponse)
 def dashboard_page(request: Request):
-    return templates.TemplateResponse(request=request, name="dashboard.html", context={"title": "Bảng điều khiển"})
+    return templates.TemplateResponse(request=request, name="dashboard.html", context={"title": "Bảng điều khiển", "active": "dashboard"})
+
+# Sprint 3: Hồ sơ nhân sự & Hợp đồng (FR-04, FR-05, FR-06)
+# Phân quyền dữ liệu được kiểm tra ở API; admin_only chỉ để chuyển hướng Staff khỏi trang quản trị
+@app.get("/employees", response_class=HTMLResponse)
+def employees_page(request: Request):
+    return templates.TemplateResponse(request=request, name="employees.html", context={"title": "Hồ sơ nhân sự", "active": "employees", "admin_only": True})
+
+@app.get("/contracts", response_class=HTMLResponse)
+def contracts_page(request: Request):
+    return templates.TemplateResponse(request=request, name="contracts.html", context={"title": "Hợp đồng lao động", "active": "contracts", "admin_only": True})
+
+@app.get("/profile", response_class=HTMLResponse)
+def profile_page(request: Request):
+    return templates.TemplateResponse(request=request, name="profile.html", context={"title": "Hồ sơ của tôi", "active": "profile"})
 

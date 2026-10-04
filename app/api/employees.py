@@ -1,7 +1,7 @@
 from typing import Optional, List
-from fastapi import APIRouter, Depends, HTTPException, status, Query
+from fastapi import APIRouter, Depends, HTTPException, status, Query, UploadFile, File
 from sqlalchemy.orm import Session
-from sqlalchemy import or_
+from sqlalchemy import or_, func
 from app.database import get_db
 from app.core.deps import get_current_user, require_roles
 from app.models.employee import NhanVien
@@ -12,6 +12,7 @@ from app.schemas.employee import (
     NhanVienListResponse, NhanVienStatusUpdate
 )
 from app.core.security import get_password_hash, validate_password_complexity
+from app.services.file_service import save_upload, IMAGE_EXTENSIONS
 
 router = APIRouter(prefix="/api/employees", tags=["Quản lý Hồ sơ Nhân sự (HR)"])
 
@@ -39,6 +40,35 @@ def map_nhan_vien_response(nv: NhanVien) -> NhanVienResponse:
         ten_vi_tri=nv.vi_tri.ten_vi_tri if nv.vi_tri else None,
         ten_dang_nhap=nv.tai_khoan.ten_dang_nhap if nv.tai_khoan else None
     )
+
+def sync_account_active(nv: NhanVien):
+    """
+    FR-06 / BR-05: Tài khoản chỉ hoạt động khi hồ sơ chưa bị xóa mềm
+    và nhân viên chưa nghỉ việc. Khôi phục / quay lại làm sẽ mở lại tài khoản.
+    """
+    if nv.tai_khoan:
+        nv.tai_khoan.is_active = (not nv.is_deleted) and nv.trang_thai != "da_nghi"
+
+def check_duplicate_contact(db: Session, email: Optional[str], so_dien_thoai: Optional[str], exclude_id: Optional[int] = None):
+    """FR-01/FR-04: Không cho trùng email / số điện thoại giữa các hồ sơ"""
+    if email:
+        q = db.query(NhanVien).filter(NhanVien.email == email)
+        if exclude_id:
+            q = q.filter(NhanVien.id != exclude_id)
+        if q.first():
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Email '{email}' đã được sử dụng")
+    if so_dien_thoai:
+        q = db.query(NhanVien).filter(NhanVien.so_dien_thoai == so_dien_thoai)
+        if exclude_id:
+            q = q.filter(NhanVien.id != exclude_id)
+        if q.first():
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Số điện thoại '{so_dien_thoai}' đã được sử dụng")
+
+def get_employee_or_404(db: Session, employee_id: int) -> NhanVien:
+    nv = db.query(NhanVien).filter(NhanVien.id == employee_id).first()
+    if not nv:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Không tìm thấy hồ sơ nhân viên")
+    return nv
 
 @router.get("", response_model=NhanVienListResponse)
 def list_employees(
@@ -88,6 +118,21 @@ def list_employees(
         items=[map_nhan_vien_response(item) for item in items]
     )
 
+@router.get("/schedulable", response_model=List[NhanVienResponse])
+def list_schedulable_employees(
+    current_user: TaiKhoan = Depends(require_roles(["Admin", "Manager"])),
+    db: Session = Depends(get_db)
+):
+    """
+    FR-06 / BR-05: Danh sách nhân viên được phép xếp ca (dùng cho Sprint 4)
+    - Chỉ gồm hồ sơ chưa xóa mềm và đang ở trạng thái 'dang_lam'
+    """
+    items = db.query(NhanVien).filter(
+        NhanVien.is_deleted == False,
+        NhanVien.trang_thai == "dang_lam"
+    ).order_by(NhanVien.ho_ten).all()
+    return [map_nhan_vien_response(nv) for nv in items]
+
 @router.get("/{employee_id}", response_model=NhanVienResponse)
 def get_employee(
     employee_id: int,
@@ -124,20 +169,18 @@ def create_employee(
     # Tự động sinh mã nhân viên nếu chưa có
     ma_nv = data.ma_nhan_vien
     if not ma_nv:
-        count = db.query(NhanVien).count() + 1
-        ma_nv = f"NV{count:03d}"
+        # Dựa trên id lớn nhất (không dùng count) để tránh trùng mã
+        next_id = (db.query(func.max(NhanVien.id)).scalar() or 0) + 1
+        ma_nv = f"NV{next_id:03d}"
+        while db.query(NhanVien).filter(NhanVien.ma_nhan_vien == ma_nv).first():
+            next_id += 1
+            ma_nv = f"NV{next_id:03d}"
     else:
         existing = db.query(NhanVien).filter(NhanVien.ma_nhan_vien == ma_nv).first()
         if existing:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Mã nhân viên '{ma_nv}' đã tồn tại")
 
-    if data.email:
-        if db.query(NhanVien).filter(NhanVien.email == data.email).first():
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Email '{data.email}' đã được sử dụng")
-
-    if data.so_dien_thoai:
-        if db.query(NhanVien).filter(NhanVien.so_dien_thoai == data.so_dien_thoai).first():
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Số điện thoại '{data.so_dien_thoai}' đã được sử dụng")
+    check_duplicate_contact(db, data.email, data.so_dien_thoai)
 
     nv = NhanVien(
         ma_nhan_vien=ma_nv,
@@ -195,17 +238,19 @@ def update_employee(
     """
     FR-04: Cập nhật thông tin hồ sơ nhân sự
     """
-    nv = db.query(NhanVien).filter(NhanVien.id == employee_id).first()
-    if not nv:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Không tìm thấy hồ sơ nhân viên")
+    nv = get_employee_or_404(db, employee_id)
+
+    check_duplicate_contact(db, data.email, data.so_dien_thoai, exclude_id=employee_id)
+    if data.ma_nhan_vien and data.ma_nhan_vien != nv.ma_nhan_vien:
+        if db.query(NhanVien).filter(NhanVien.ma_nhan_vien == data.ma_nhan_vien).first():
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Mã nhân viên '{data.ma_nhan_vien}' đã tồn tại")
 
     update_fields = data.model_dump(exclude_unset=True)
     for field, value in update_fields.items():
         setattr(nv, field, value)
 
-    # Nếu đổi trạng thái sang 'da_nghi', cập nhật tài khoản thành inactive (FR-06)
-    if data.trang_thai == "da_nghi" and nv.tai_khoan:
-        nv.tai_khoan.is_active = False
+    # FR-06: 'da_nghi' khóa tài khoản, quay lại 'dang_lam'/'nghi_phep' thì mở lại
+    sync_account_active(nv)
 
     db.commit()
     db.refresh(nv)
@@ -221,14 +266,12 @@ def change_employee_status(
     """
     FR-06: Cập nhật trạng thái làm việc (dang_lam, nghi_phep, da_nghi)
     - Nếu trạng thái là 'da_nghi': Tự động vô hiệu hóa tài khoản đăng nhập
+    - Nếu chuyển lại 'dang_lam' / 'nghi_phep': Mở lại tài khoản
     """
-    nv = db.query(NhanVien).filter(NhanVien.id == employee_id).first()
-    if not nv:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Không tìm thấy hồ sơ nhân viên")
+    nv = get_employee_or_404(db, employee_id)
 
     nv.trang_thai = data.trang_thai
-    if data.trang_thai == "da_nghi" and nv.tai_khoan:
-        nv.tai_khoan.is_active = False
+    sync_account_active(nv)
 
     db.commit()
     db.refresh(nv)
@@ -244,13 +287,10 @@ def delete_employee(
     FR-04: Xóa mềm hồ sơ nhân sự (soft delete)
     Bảo toàn toàn vẹn dữ liệu cho lịch sử chấm công và tính lương
     """
-    nv = db.query(NhanVien).filter(NhanVien.id == employee_id).first()
-    if not nv:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Không tìm thấy hồ sơ nhân viên")
+    nv = get_employee_or_404(db, employee_id)
 
     nv.is_deleted = True
-    if nv.tai_khoan:
-        nv.tai_khoan.is_active = False
+    sync_account_active(nv)
 
     db.commit()
     return {"message": f"Đã xóa mềm hồ sơ nhân viên '{nv.ho_ten}' (dữ liệu lịch sử vẫn được bảo toàn)"}
@@ -261,12 +301,25 @@ def restore_employee(
     current_user: TaiKhoan = Depends(require_roles(["Admin", "Manager"])),
     db: Session = Depends(get_db)
 ):
-    """Khôi phục hồ sơ nhân viên đã xóa mềm"""
-    nv = db.query(NhanVien).filter(NhanVien.id == employee_id).first()
-    if not nv:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Không tìm thấy hồ sơ nhân viên")
+    """Khôi phục hồ sơ nhân viên đã xóa mềm (mở lại tài khoản nếu chưa nghỉ việc)"""
+    nv = get_employee_or_404(db, employee_id)
 
     nv.is_deleted = False
+    sync_account_active(nv)
+    db.commit()
+    db.refresh(nv)
+    return map_nhan_vien_response(nv)
+
+@router.post("/{employee_id}/avatar", response_model=NhanVienResponse)
+def upload_avatar(
+    employee_id: int,
+    file: UploadFile = File(...),
+    current_user: TaiKhoan = Depends(require_roles(["Admin", "Manager"])),
+    db: Session = Depends(get_db)
+):
+    """FR-04: Tải lên ảnh đại diện nhân viên (jpg, png, webp; tối đa 5MB)"""
+    nv = get_employee_or_404(db, employee_id)
+    nv.anh_dai_dien = save_upload(file, "avatars", IMAGE_EXTENSIONS)
     db.commit()
     db.refresh(nv)
     return map_nhan_vien_response(nv)

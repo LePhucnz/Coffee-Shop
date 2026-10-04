@@ -1,0 +1,189 @@
+{% extends "_layout.html" %}
+
+{% block content %}
+<!-- Header -->
+<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-[#f0e9df]">
+    <div>
+        <h1 class="text-3xl font-extrabold text-[#18181b] tracking-tight">Hồ sơ nhân sự</h1>
+        <p class="text-sm text-[#71717a] mt-1 font-medium">Thêm, sửa, tìm kiếm và theo dõi trạng thái làm việc của nhân viên</p>
+    </div>
+    <button type="button" onclick="openEmployeeModal()" class="btn-primary px-5">+ Thêm nhân viên</button>
+</div>
+
+<!-- Thống kê nhanh theo trạng thái (FR-06) -->
+<div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-6">
+    <div class="dash-card p-5">
+        <span class="text-xs font-bold text-[#71717a] uppercase tracking-wider">Đang làm việc</span>
+        <div id="count-dang_lam" class="text-2xl font-extrabold text-emerald-700 mt-1">-</div>
+    </div>
+    <div class="dash-card p-5">
+        <span class="text-xs font-bold text-[#71717a] uppercase tracking-wider">Đang nghỉ phép</span>
+        <div id="count-nghi_phep" class="text-2xl font-extrabold text-amber-700 mt-1">-</div>
+    </div>
+    <div class="dash-card p-5">
+        <span class="text-xs font-bold text-[#71717a] uppercase tracking-wider">Đã nghỉ việc</span>
+        <div id="count-da_nghi" class="text-2xl font-extrabold text-stone-500 mt-1">-</div>
+    </div>
+</div>
+
+<!-- Bộ lọc (FR-04) -->
+<div class="dash-card p-4 mt-6 flex flex-col lg:flex-row gap-3 lg:items-center">
+    <div class="flex-1">
+        <input type="text" id="search-keyword" placeholder="Tìm theo tên, mã NV, email, SĐT, CCCD..." class="form-input">
+    </div>
+    <div class="lg:w-48">
+        <select id="filter-position" class="form-input">
+            <option value="">Tất cả vị trí</option>
+        </select>
+    </div>
+    <div class="lg:w-48">
+        <select id="filter-status" class="form-input">
+            <option value="">Tất cả trạng thái</option>
+            <option value="dang_lam">Đang làm việc</option>
+            <option value="nghi_phep">Đang nghỉ phép</option>
+            <option value="da_nghi">Đã nghỉ việc</option>
+        </select>
+    </div>
+    <label class="flex items-center gap-2 text-sm text-[#52525b] whitespace-nowrap">
+        <input type="checkbox" id="filter-deleted" class="accent-[#cf6800]"> Hiện hồ sơ đã xóa
+    </label>
+</div>
+
+<!-- Bảng danh sách nhân viên -->
+<div class="dash-card p-0 mt-6 overflow-hidden">
+    <div class="overflow-x-auto">
+        <table class="w-full text-left border-collapse">
+            <thead>
+                <tr class="bg-[#eee7db]/80 text-xs font-bold text-[#52525b]">
+                    <th class="py-3 px-5">Nhân viên</th>
+                    <th class="py-3 px-5">Vị trí</th>
+                    <th class="py-3 px-5">Liên hệ</th>
+                    <th class="py-3 px-5">Ngày vào làm</th>
+                    <th class="py-3 px-5">Trạng thái</th>
+                    <th class="py-3 px-5 text-right">Thao tác</th>
+                </tr>
+            </thead>
+            <tbody id="employees-tbody" class="divide-y divide-[#f5efe6] text-sm">
+                <tr><td colspan="6" class="py-10 text-center text-[#71717a]">Đang tải dữ liệu...</td></tr>
+            </tbody>
+        </table>
+    </div>
+    <div id="employees-total" class="px-5 py-3 text-xs text-[#71717a] border-t border-[#f5efe6]"></div>
+</div>
+
+<!-- Modal thêm / sửa hồ sơ -->
+<div id="employee-modal" class="hidden fixed inset-0 z-50 bg-black/50 flex items-start justify-center p-4 overflow-y-auto">
+    <div class="bg-white rounded-2xl shadow-2xl max-w-3xl w-full p-6 my-8 fade-in">
+        <div class="flex items-center justify-between pb-4 mb-4 border-b border-[#f0e9df]">
+            <h3 id="employee-modal-title" class="text-lg font-bold">Thêm nhân viên</h3>
+            <button type="button" onclick="closeEmployeeModal()" class="text-2xl leading-none text-[#71717a] hover:text-black">&times;</button>
+        </div>
+
+        <form id="employee-form" class="space-y-4">
+            <input type="hidden" id="emp-id">
+
+            <div class="flex items-center gap-4">
+                <img id="emp-avatar-preview" src="" alt="" class="w-16 h-16 rounded-full object-cover bg-[#eee7db] hidden">
+                <div id="emp-avatar-placeholder" class="w-16 h-16 rounded-full bg-[#eee7db] flex items-center justify-center text-2xl">👤</div>
+                <div class="flex-1">
+                    <label class="block text-xs font-bold text-[#52525b] mb-1" for="emp-avatar">Ảnh đại diện (jpg, png, webp, tối đa 5MB)</label>
+                    <input type="file" id="emp-avatar" accept=".jpg,.jpeg,.png,.webp" class="text-sm">
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-xs font-bold text-[#52525b] mb-1" for="emp-name">Họ và tên <span class="text-red-500">*</span></label>
+                    <input type="text" id="emp-name" required minlength="2" class="form-input">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-[#52525b] mb-1" for="emp-code">Mã nhân viên (để trống để tự sinh)</label>
+                    <input type="text" id="emp-code" placeholder="VD: NV010" class="form-input">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-[#52525b] mb-1" for="emp-dob">Ngày sinh</label>
+                    <input type="date" id="emp-dob" class="form-input">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-[#52525b] mb-1" for="emp-gender">Giới tính</label>
+                    <select id="emp-gender" class="form-input">
+                        <option value="">-- Chọn --</option>
+                        <option value="Nam">Nam</option>
+                        <option value="Nữ">Nữ</option>
+                        <option value="Khác">Khác</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-[#52525b] mb-1" for="emp-phone">Số điện thoại</label>
+                    <input type="tel" id="emp-phone" class="form-input">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-[#52525b] mb-1" for="emp-email">Email</label>
+                    <input type="email" id="emp-email" class="form-input">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-[#52525b] mb-1" for="emp-cccd">CMND / CCCD</label>
+                    <input type="text" id="emp-cccd" class="form-input">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-[#52525b] mb-1" for="emp-start">Ngày vào làm</label>
+                    <input type="date" id="emp-start" class="form-input">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-[#52525b] mb-1" for="emp-position">Vị trí công việc</label>
+                    <select id="emp-position" class="form-input"><option value="">-- Chọn vị trí --</option></select>
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-[#52525b] mb-1" for="emp-store">Cửa hàng</label>
+                    <select id="emp-store" class="form-input"><option value="">-- Chọn cửa hàng --</option></select>
+                </div>
+                <div class="sm:col-span-2">
+                    <label class="block text-xs font-bold text-[#52525b] mb-1" for="emp-address">Địa chỉ</label>
+                    <input type="text" id="emp-address" class="form-input">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-[#52525b] mb-1" for="emp-status">Trạng thái làm việc</label>
+                    <select id="emp-status" class="form-input">
+                        <option value="dang_lam">Đang làm việc</option>
+                        <option value="nghi_phep">Đang nghỉ phép</option>
+                        <option value="da_nghi">Đã nghỉ việc</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Tạo tài khoản đăng nhập đi kèm (chỉ khi thêm mới) -->
+            <div id="account-section" class="rounded-xl border border-[#f0e9df] p-4 bg-[#fbf8f4]">
+                <label class="flex items-center gap-2 text-sm font-semibold">
+                    <input type="checkbox" id="emp-create-account" class="accent-[#cf6800]"> Tạo tài khoản đăng nhập cho nhân viên này
+                </label>
+                <div id="account-fields" class="hidden grid grid-cols-1 sm:grid-cols-3 gap-4 mt-4">
+                    <div>
+                        <label class="block text-xs font-bold text-[#52525b] mb-1" for="acc-username">Tên đăng nhập</label>
+                        <input type="text" id="acc-username" class="form-input">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-[#52525b] mb-1" for="acc-password">Mật khẩu (≥ 8 ký tự, có chữ và số)</label>
+                        <input type="password" id="acc-password" class="form-input">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-[#52525b] mb-1" for="acc-role">Vai trò</label>
+                        <select id="acc-role" class="form-input">
+                            <option value="3">Nhân viên (Staff)</option>
+                            <option value="2">Quản lý (Manager)</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex justify-end gap-3 pt-2">
+                <button type="button" onclick="closeEmployeeModal()" class="btn-outline-brand">Hủy</button>
+                <button type="submit" id="emp-submit" class="btn-primary px-6">Lưu hồ sơ</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/js/employees.js"></script>
+{% endblock %}
