@@ -40,7 +40,7 @@ class NhanVienUpdate(BaseModel):
     so_nhan_khau: Optional[int] = None
     ngay_vao_lam: Optional[date] = None
     anh_dai_dien: Optional[str] = None
-    trang_thai: Optional[str] = None  # 'dang_lam', 'nghi_phep', 'da_nghi'
+    trang_thai: Optional[str] = Field(None, pattern="^(dang_lam|nghi_phep|da_nghi)$")
 
 class NhanVienStatusUpdate(BaseModel):
     trang_thai: str = Field(..., pattern="^(dang_lam|nghi_phep|da_nghi)$")

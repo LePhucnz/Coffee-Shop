@@ -1,0 +1,51 @@
+    {% extends "_layout.html" %}
+
+{% block content %}
+<div class="pb-6 border-b border-[#f0e9df]">
+    <h1 class="text-3xl font-extrabold text-[#18181b] tracking-tight">Hồ sơ của tôi</h1>
+    <p class="text-sm text-[#71717a] mt-1 font-medium">Thông tin cá nhân và hợp đồng lao động của bạn</p>
+</div>
+
+<div id="profile-empty" class="hidden dash-card p-8 mt-6 text-center text-[#71717a]">
+    Tài khoản này chưa được liên kết với hồ sơ nhân viên nào.
+</div>
+
+<div id="profile-content" class="hidden grid grid-cols-1 lg:grid-cols-3 gap-6 mt-6">
+    <!-- Thẻ thông tin chính -->
+    <div class="dash-card p-6 flex flex-col items-center text-center">
+        <div id="pf-avatar" class="w-24 h-24 rounded-full bg-[#cf6800] text-white flex items-center justify-center text-3xl font-bold overflow-hidden"></div>
+        <div id="pf-name" class="text-xl font-extrabold mt-4"></div>
+        <div id="pf-code" class="text-sm text-[#71717a]"></div>
+        <div id="pf-status" class="mt-3"></div>
+    </div>
+
+    <!-- Chi tiết -->
+    <div class="dash-card p-6 lg:col-span-2">
+        <h2 class="text-base font-bold mb-4">Thông tin cá nhân</h2>
+        <dl id="pf-details" class="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-4 text-sm"></dl>
+    </div>
+
+    <!-- Hợp đồng -->
+    <div class="dash-card p-6 lg:col-span-3">
+        <h2 class="text-base font-bold mb-4">Hợp đồng lao động</h2>
+        <div class="overflow-x-auto">
+            <table class="w-full text-left border-collapse">
+                <thead>
+                    <tr class="bg-[#eee7db]/80 text-xs font-bold text-[#52525b]">
+                        <th class="py-3 px-5">Loại hợp đồng</th>
+                        <th class="py-3 px-5">Thời hạn</th>
+                        <th class="py-3 px-5 text-right">Mức lương</th>
+                        <th class="py-3 px-5">File</th>
+                        <th class="py-3 px-5">Trạng thái</th>
+                    </tr>
+                </thead>
+                <tbody id="pf-contracts" class="divide-y divide-[#f5efe6] text-sm"></tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/js/profile.js"></script>
+{% endblock %}

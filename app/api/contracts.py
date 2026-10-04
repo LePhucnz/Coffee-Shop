@@ -1,6 +1,6 @@
 from typing import Optional, List
 from datetime import date
-from fastapi import APIRouter, Depends, HTTPException, status, Query
+from fastapi import APIRouter, Depends, HTTPException, status, Query, UploadFile, File
 from sqlalchemy.orm import Session
 from app.database import get_db
 from app.core.deps import get_current_user, require_roles
@@ -9,6 +9,7 @@ from app.models.user import TaiKhoan
 from app.schemas.contract import (
     HopDongCreate, HopDongUpdate, HopDongResponse, HopDongExpiringAlert
 )
+from app.services.file_service import save_upload, CONTRACT_EXTENSIONS
 
 router = APIRouter(prefix="/api/contracts", tags=["Quản lý Hợp đồng Lao động (Contracts)"])
 
@@ -39,6 +40,22 @@ def map_hop_dong_response(hd: HopDong) -> HopDongResponse:
         canh_bao_het_han=canh_bao
     )
 
+def mark_expired_contracts(db: Session):
+    """FR-05: Tự động chuyển hợp đồng đã quá ngày kết thúc sang trạng thái 'het_han'"""
+    updated = db.query(HopDong).filter(
+        HopDong.trang_thai == "hieu_luc",
+        HopDong.ngay_ket_thuc.isnot(None),
+        HopDong.ngay_ket_thuc < date.today()
+    ).update({"trang_thai": "het_han"}, synchronize_session=False)
+    if updated:
+        db.commit()
+
+def get_contract_or_404(db: Session, contract_id: int) -> HopDong:
+    hd = db.query(HopDong).filter(HopDong.id == contract_id).first()
+    if not hd:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Không tìm thấy hợp đồng")
+    return hd
+
 @router.get("", response_model=List[HopDongResponse])
 def list_contracts(
     ma_nhan_vien: Optional[int] = Query(None, description="Lọc theo mã nhân viên"),
@@ -52,6 +69,7 @@ def list_contracts(
     - Admin/Manager xem toàn bộ
     - Staff chỉ xem hợp đồng của chính mình
     """
+    mark_expired_contracts(db)
     role_name = current_user.vai_tro.ten_vai_tro if current_user.vai_tro else "Staff"
     query = db.query(HopDong)
 
@@ -80,6 +98,7 @@ def list_expiring_contracts(
     """
     FR-05: Cảnh báo hợp đồng sắp hết hạn trong vòng 15-30 ngày
     """
+    mark_expired_contracts(db)
     today = date.today()
     contracts = db.query(HopDong).filter(
         HopDong.trang_thai == "hieu_luc",
@@ -189,3 +208,17 @@ def delete_contract(
     db.delete(hd)
     db.commit()
     return {"message": "Đã xóa hợp đồng thành công"}
+
+@router.post("/{contract_id}/file", response_model=HopDongResponse)
+def upload_contract_file(
+    contract_id: int,
+    file: UploadFile = File(...),
+    current_user: TaiKhoan = Depends(require_roles(["Admin", "Manager"])),
+    db: Session = Depends(get_db)
+):
+    """FR-05: Tải lên file hợp đồng đính kèm (PDF hoặc ảnh scan; tối đa 5MB)"""
+    hd = get_contract_or_404(db, contract_id)
+    hd.file_dinh_kem = save_upload(file, "contracts", CONTRACT_EXTENSIONS)
+    db.commit()
+    db.refresh(hd)
+    return map_hop_dong_response(hd)
