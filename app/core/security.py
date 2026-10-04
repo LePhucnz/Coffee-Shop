@@ -67,4 +67,5 @@ def decode_token(token: str) -> Optional[Dict[str, Any]]:
         payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
         return payload
     except jwt.PyJWTError:
+
         return None

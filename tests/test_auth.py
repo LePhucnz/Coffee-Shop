@@ -140,3 +140,110 @@ def test_login_history_logged(client):
     logs = resp.json()
     assert len(logs) > 0
     assert "thoi_gian_dang_nhap" in logs[0]
+
+def test_login_with_email_and_phone(client):
+    """FR-02: Đăng nhập bằng Email và Số điện thoại"""
+    # Đăng nhập bằng email
+    resp_email = client.post(
+        "/api/auth/login",
+        json={"ten_dang_nhap": "nva@coffeeshop.com", "mat_khau": "Admin@123456"}
+    )
+    assert resp_email.status_code == 200
+    assert "access_token" in resp_email.json()
+
+    # Đăng nhập bằng số điện thoại
+    resp_phone = client.post(
+        "/api/auth/login",
+        json={"ten_dang_nhap": "0901234567", "mat_khau": "Admin@123456"}
+    )
+    assert resp_phone.status_code == 200
+    assert "access_token" in resp_phone.json()
+
+def test_register_weak_password(client):
+    """FR-01: Đăng ký thất bại nếu mật khẩu không đạt chuẩn độ phức tạp"""
+    # Mật khẩu quá ngắn
+    resp1 = client.post(
+        "/api/auth/register",
+        json={"ten_dang_nhap": "weak_user_1", "mat_khau": "short", "ho_ten": "Weak Pass 1"}
+    )
+    assert resp1.status_code in [400, 422]
+
+    # Mật khẩu không chứa số
+    resp2 = client.post(
+        "/api/auth/register",
+        json={"ten_dang_nhap": "weak_user_2", "mat_khau": "onlyletters", "ho_ten": "Weak Pass 2"}
+    )
+    assert resp2.status_code == 400
+    assert "độ dài tối thiểu 8 ký tự" in resp2.json()["detail"]
+
+def test_forgot_password_and_reset_flow(client):
+    """
+    Test toàn bộ luồng Quên mật khẩu & Đặt lại mật khẩu:
+    1. Gửi yêu cầu quên mật khẩu với email
+    2. Nhận reset_token
+    3. Đặt lại mật khẩu mới với token
+    4. Đăng nhập thành công với mật khẩu mới
+    """
+    # 1. Yêu cầu quên mật khẩu với email hợp lệ
+    forgot_resp = client.post(
+        "/api/auth/forgot-password",
+        json={"email": "nva@coffeeshop.com"}
+    )
+    assert forgot_resp.status_code == 200
+    forgot_data = forgot_resp.json()
+    assert forgot_data["success"] is True
+    assert forgot_data["reset_token"] is not None
+    assert "/reset-password?token=" in forgot_data["reset_url"]
+
+    reset_token = forgot_data["reset_token"]
+
+    # 2. Thử đặt mật khẩu mới quá yếu -> lỗi
+    weak_reset = client.post(
+        "/api/auth/reset-password",
+        json={"token": reset_token, "mat_khau": "weakpass"}
+    )
+    assert weak_reset.status_code == 400
+    assert "độ dài tối thiểu 8 ký tự" in weak_reset.json()["detail"]
+
+    # 3. Đặt mật khẩu mới hợp lệ
+    valid_reset = client.post(
+        "/api/auth/reset-password",
+        json={"token": reset_token, "mat_khau": "NewPassword2026!"}
+    )
+    assert valid_reset.status_code == 200
+    assert valid_reset.json()["success"] is True
+
+    # 4. Đăng nhập bằng mật khẩu mới
+    new_login = client.post(
+        "/api/auth/login",
+        json={"ten_dang_nhap": "nguyen.a", "mat_khau": "NewPassword2026!"}
+    )
+    assert new_login.status_code == 200
+    assert "access_token" in new_login.json()
+
+    # Phục hồi lại mật khẩu cũ để không ảnh hưởng các bài test khác
+    restore_resp = client.post(
+        "/api/auth/reset-password",
+        json={"email": "nva@coffeeshop.com", "mat_khau": "Admin@123456"}
+    )
+    assert restore_resp.status_code == 200
+
+def test_forgot_password_nonexistent_email(client):
+    """Quên mật khẩu với email không tồn tại vẫn trả về thông báo an toàn"""
+    resp = client.post(
+        "/api/auth/forgot-password",
+        json={"email": "unknown_email_9999@test.com"}
+    )
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["success"] is True
+    assert data["reset_token"] is None
+
+def test_reset_password_invalid_token(client):
+    """Đặt lại mật khẩu với token giả mạo hoặc sai định dạng"""
+    resp = client.post(
+        "/api/auth/reset-password",
+        json={"token": "invalid_token_xyz", "mat_khau": "ValidPass123"}
+    )
+    assert resp.status_code == 400
+    assert "không hợp lệ hoặc đã hết hạn" in resp.json()["detail"]
