@@ -1,5 +1,5 @@
 // Trang Hợp đồng lao động (FR-05)
-const CONTRACT_TYPES = ["Thử việc", "Toàn thời gian", "Bán thời gian", "Thời vụ"];
+const CONTRACT_TYPES = ["Chính thức", "Thử việc", "Thời vụ", "Toàn thời gian", "Bán thời gian"];
 let contracts = [];
 let employeeOptions = [];
 

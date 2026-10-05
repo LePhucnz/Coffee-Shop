@@ -127,3 +127,123 @@ def test_resigned_employee_cannot_login(client):
     )
     assert login_resp.status_code in [400, 403]
     assert "Đã nghỉ việc" in login_resp.json()["detail"] or "vô hiệu hóa" in login_resp.json()["detail"]
+
+    # FR-06: Nhân viên đã nghỉ việc KHÔNG xuất hiện trong danh sách xếp ca
+    sched_resp = client.get("/api/employees/schedulable", headers=headers)
+    assert sched_resp.status_code == 200
+    schedulable_ids = [e["id"] for e in sched_resp.json()]
+    assert emp_id not in schedulable_ids
+
+def test_fr04_full_profile_fields_and_update(client):
+    """
+    FR-04: Đầy đủ thông tin hồ sơ:
+    họ tên, ngày sinh, số điện thoại, email, địa chỉ, CMND/CCCD, vị trí công việc, ngày vào làm, ảnh đại diện
+    và chức năng sửa hồ sơ.
+    """
+    token = get_admin_token(client)
+    headers = {"Authorization": f"Bearer {token}"}
+
+    payload = {
+        "ho_ten": "Nguyễn Hoàng Nam",
+        "ngay_sinh": "1998-06-25",
+        "so_dien_thoai": "0987654321",
+        "email": "hoangnam@coffeeshop.com",
+        "dia_chi": "789 Nguyễn Huệ, Quận 1, TP.HCM",
+        "cccd": "079098123456",
+        "ma_vi_tri": 2,  # Pha chế (Barista)
+        "ma_cua_hang": 1,
+        "ngay_vao_lam": "2024-01-15",
+        "anh_dai_dien": "/static/uploads/avatars/sample.jpg",
+        "trang_thai": "dang_lam"
+    }
+
+    create_res = client.post("/api/employees", headers=headers, json=payload)
+    assert create_res.status_code == 201
+    emp = create_res.json()
+    emp_id = emp["id"]
+
+    assert emp["ho_ten"] == "Nguyễn Hoàng Nam"
+    assert emp["ngay_sinh"] == "1998-06-25"
+    assert emp["so_dien_thoai"] == "0987654321"
+    assert emp["email"] == "hoangnam@coffeeshop.com"
+    assert emp["dia_chi"] == "789 Nguyễn Huệ, Quận 1, TP.HCM"
+    assert emp["cccd"] == "079098123456"
+    assert emp["ma_vi_tri"] == 2
+    assert emp["ten_vi_tri"] == "Pha chế (Barista)"
+    assert emp["ngay_vao_lam"] == "2024-01-15"
+    assert emp["anh_dai_dien"] == "/static/uploads/avatars/sample.jpg"
+
+    # Cập nhật hồ sơ (sửa)
+    update_res = client.put(
+        f"/api/employees/{emp_id}",
+        headers=headers,
+        json={
+            "dia_chi": "999 Trần Hưng Đạo, Quận 5, TP.HCM",
+            "ma_vi_tri": 4,  # Thu ngân
+            "trang_thai": "nghi_phep"
+        }
+    )
+    assert update_res.status_code == 200
+    updated = update_res.json()
+    assert updated["dia_chi"] == "999 Trần Hưng Đạo, Quận 5, TP.HCM"
+    assert updated["ma_vi_tri"] == 4
+    assert updated["ten_vi_tri"] == "Thu ngân"
+    assert updated["trang_thai"] == "nghi_phep"
+
+def test_fr04_search_and_filter_features(client):
+    """
+    FR-04: Tìm kiếm / lọc theo tên, vị trí, trạng thái làm việc
+    """
+    token = get_admin_token(client)
+    headers = {"Authorization": f"Bearer {token}"}
+
+    # 1. Tìm theo tên
+    res = client.get("/api/employees?keyword=Trần Thị B", headers=headers)
+    assert res.status_code == 200
+    items = res.json()["items"]
+    assert any(e["ho_ten"] == "Trần Thị B" for e in items)
+
+    # 2. Tìm theo vị trí (từ khóa hoặc query vi_tri)
+    res_pos = client.get("/api/employees?vi_tri=Pha chế", headers=headers)
+    assert res_pos.status_code == 200
+    for e in res_pos.json()["items"]:
+        assert "Pha chế" in e["ten_vi_tri"]
+
+    # 3. Lọc theo trạng thái làm việc
+    res_status = client.get("/api/employees?trang_thai=nghi_phep", headers=headers)
+    assert res_status.status_code == 200
+    for e in res_status.json()["items"]:
+        assert e["trang_thai"] == "nghi_phep"
+
+def test_fr04_archive_and_unarchive(client):
+    """
+    FR-04: Lưu trữ (archive) và Khôi phục (unarchive) hồ sơ nhân sự
+    """
+    token = get_admin_token(client)
+    headers = {"Authorization": f"Bearer {token}"}
+
+    create_res = client.post(
+        "/api/employees",
+        headers=headers,
+        json={"ho_ten": "Nhân Viên Lưu Trữ", "trang_thai": "dang_lam"}
+    )
+    emp_id = create_res.json()["id"]
+
+    # Archive
+    arc_res = client.post(f"/api/employees/{emp_id}/archive", headers=headers)
+    assert arc_res.status_code == 200
+    assert arc_res.json()["is_deleted"] is True
+
+    # Ẩn khỏi danh sách mặc định
+    list_res = client.get("/api/employees", headers=headers)
+    assert emp_id not in [e["id"] for e in list_res.json()["items"]]
+
+    # Unarchive
+    unarc_res = client.post(f"/api/employees/{emp_id}/unarchive", headers=headers)
+    assert unarc_res.status_code == 200
+    assert unarc_res.json()["is_deleted"] is False
+
+    # Lại xuất hiện trong danh sách
+    list_res2 = client.get("/api/employees", headers=headers)
+    assert emp_id in [e["id"] for e in list_res2.json()["items"]]
+

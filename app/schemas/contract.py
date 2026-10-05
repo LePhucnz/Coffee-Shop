@@ -5,7 +5,7 @@ from pydantic import BaseModel, Field
 
 class HopDongBase(BaseModel):
     ma_nhan_vien: int
-    loai_hop_dong: str = Field(..., description="Toàn thời gian, Bán thời gian, Thử việc, Thời vụ")
+    loai_hop_dong: str = Field(..., description="Chính thức, Thử việc, Thời vụ, Toàn thời gian, Bán thời gian")
     ngay_bat_dau: Optional[date] = None
     ngay_ket_thuc: Optional[date] = None
     muc_luong: Optional[Decimal] = None
