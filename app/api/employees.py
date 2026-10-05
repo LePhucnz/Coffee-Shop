@@ -72,21 +72,22 @@ def get_employee_or_404(db: Session, employee_id: int) -> NhanVien:
 
 @router.get("", response_model=NhanVienListResponse)
 def list_employees(
-    keyword: Optional[str] = Query(None, description="Tìm kiếm theo họ tên, mã NV, email, SĐT"),
-    ma_vi_tri: Optional[int] = Query(None, description="Lọc theo vị trí công việc"),
+    keyword: Optional[str] = Query(None, description="Tìm kiếm theo họ tên, mã NV, email, SĐT, CCCD hoặc vị trí"),
+    ma_vi_tri: Optional[int] = Query(None, description="Lọc theo ID vị trí công việc"),
+    vi_tri: Optional[str] = Query(None, description="Lọc theo tên vị trí công việc (vd: Pha chế, Phục vụ, Thu ngân)"),
     ma_cua_hang: Optional[int] = Query(None, description="Lọc theo cửa hàng"),
     trang_thai: Optional[str] = Query(None, description="Lọc theo trạng thái (dang_lam, nghi_phep, da_nghi)"),
-    include_deleted: bool = Query(False, description="Bao gồm cả hồ sơ đã xóa mềm"),
+    include_deleted: bool = Query(False, description="Bao gồm cả hồ sơ đã xóa mềm / lưu trữ"),
     current_user: TaiKhoan = Depends(require_roles(["Admin", "Manager"])),
     db: Session = Depends(get_db)
 ):
     """
     FR-04, FR-06: Danh sách hồ sơ nhân sự
-    - Tìm kiếm theo họ tên, mã, email, SĐT
-    - Lọc theo vị trí, cửa hàng, trạng thái
-    - Mặc định ẩn hồ sơ đã xóa mềm (soft delete)
+    - Tìm kiếm theo họ tên, mã, email, SĐT, CCCD, vị trí
+    - Lọc theo vị trí (ID hoặc tên), cửa hàng, trạng thái
+    - Mặc định ẩn hồ sơ đã xóa mềm (soft delete / archive)
     """
-    query = db.query(NhanVien)
+    query = db.query(NhanVien).outerjoin(ViTri, NhanVien.ma_vi_tri == ViTri.id)
 
     if not include_deleted:
         query = query.filter(NhanVien.is_deleted == False)
@@ -99,12 +100,16 @@ def list_employees(
                 NhanVien.ma_nhan_vien.ilike(kw),
                 NhanVien.email.ilike(kw),
                 NhanVien.so_dien_thoai.ilike(kw),
-                NhanVien.cccd.ilike(kw)
+                NhanVien.cccd.ilike(kw),
+                ViTri.ten_vi_tri.ilike(kw)
             )
         )
 
     if ma_vi_tri:
         query = query.filter(NhanVien.ma_vi_tri == ma_vi_tri)
+
+    if vi_tri:
+        query = query.filter(ViTri.ten_vi_tri.ilike(f"%{vi_tri.strip()}%"))
 
     if ma_cua_hang:
         query = query.filter(NhanVien.ma_cua_hang == ma_cua_hang)
@@ -284,7 +289,7 @@ def delete_employee(
     db: Session = Depends(get_db)
 ):
     """
-    FR-04: Xóa mềm hồ sơ nhân sự (soft delete)
+    FR-04: Xóa mềm / vô hiệu hóa hồ sơ nhân sự (soft delete)
     Bảo toàn toàn vẹn dữ liệu cho lịch sử chấm công và tính lương
     """
     nv = get_employee_or_404(db, employee_id)
@@ -293,7 +298,26 @@ def delete_employee(
     sync_account_active(nv)
 
     db.commit()
-    return {"message": f"Đã xóa mềm hồ sơ nhân viên '{nv.ho_ten}' (dữ liệu lịch sử vẫn được bảo toàn)"}
+    return {"message": f"Đã vô hiệu hóa (xóa mềm) hồ sơ nhân viên '{nv.ho_ten}' (dữ liệu lịch sử vẫn được bảo toàn)"}
+
+@router.post("/{employee_id}/archive", response_model=NhanVienResponse)
+def archive_employee(
+    employee_id: int,
+    current_user: TaiKhoan = Depends(require_roles(["Admin", "Manager"])),
+    db: Session = Depends(get_db)
+):
+    """
+    FR-04: Lưu trữ (archive / vô hiệu hóa) hồ sơ nhân sự (soft delete)
+    Bảo toàn toàn vẹn dữ liệu cho lịch sử chấm công và tính lương
+    """
+    nv = get_employee_or_404(db, employee_id)
+
+    nv.is_deleted = True
+    sync_account_active(nv)
+
+    db.commit()
+    db.refresh(nv)
+    return map_nhan_vien_response(nv)
 
 @router.post("/{employee_id}/restore", response_model=NhanVienResponse)
 def restore_employee(
@@ -301,7 +325,7 @@ def restore_employee(
     current_user: TaiKhoan = Depends(require_roles(["Admin", "Manager"])),
     db: Session = Depends(get_db)
 ):
-    """Khôi phục hồ sơ nhân viên đã xóa mềm (mở lại tài khoản nếu chưa nghỉ việc)"""
+    """Khôi phục hồ sơ nhân viên đã xóa mềm / lưu trữ (mở lại tài khoản nếu chưa nghỉ việc)"""
     nv = get_employee_or_404(db, employee_id)
 
     nv.is_deleted = False
@@ -309,6 +333,15 @@ def restore_employee(
     db.commit()
     db.refresh(nv)
     return map_nhan_vien_response(nv)
+
+@router.post("/{employee_id}/unarchive", response_model=NhanVienResponse)
+def unarchive_employee(
+    employee_id: int,
+    current_user: TaiKhoan = Depends(require_roles(["Admin", "Manager"])),
+    db: Session = Depends(get_db)
+):
+    """Khôi phục hồ sơ nhân viên đã lưu trữ (unarchive)"""
+    return restore_employee(employee_id, current_user, db)
 
 @router.post("/{employee_id}/avatar", response_model=NhanVienResponse)
 def upload_avatar(

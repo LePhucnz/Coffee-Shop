@@ -91,7 +91,9 @@ def list_contracts(
 
 @router.get("/expiring", response_model=List[HopDongExpiringAlert])
 def list_expiring_contracts(
-    days: int = Query(30, ge=1, le=90, description="Ngưỡng ngày cảnh báo hết hạn (mặc định 30 ngày)"),
+    days: Optional[int] = Query(None, ge=1, le=90, description="Ngưỡng ngày cảnh báo hết hạn (mặc định 30 ngày)"),
+    min_days: int = Query(0, ge=0, description="Ngưỡng ngày cảnh báo tối thiểu"),
+    max_days: Optional[int] = Query(None, ge=1, le=90, description="Ngưỡng ngày cảnh báo tối đa"),
     current_user: TaiKhoan = Depends(require_roles(["Admin", "Manager"])),
     db: Session = Depends(get_db)
 ):
@@ -99,6 +101,8 @@ def list_expiring_contracts(
     FR-05: Cảnh báo hợp đồng sắp hết hạn trong vòng 15-30 ngày
     """
     mark_expired_contracts(db)
+    upper_limit = max_days if max_days is not None else (days if days is not None else 30)
+    lower_limit = min_days
     today = date.today()
     contracts = db.query(HopDong).filter(
         HopDong.trang_thai == "hieu_luc",
@@ -108,7 +112,7 @@ def list_expiring_contracts(
     alert_list = []
     for hd in contracts:
         delta = (hd.ngay_ket_thuc - today).days
-        if 0 <= delta <= days:
+        if lower_limit <= delta <= upper_limit:
             alert_list.append(
                 HopDongExpiringAlert(
                     id=hd.id,
