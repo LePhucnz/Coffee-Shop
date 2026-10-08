@@ -247,3 +247,143 @@ def test_fr04_archive_and_unarchive(client):
     list_res2 = client.get("/api/employees", headers=headers)
     assert emp_id in [e["id"] for e in list_res2.json()["items"]]
 
+
+def test_reject_cccd_with_letters(client):
+    """Lỗi cho phép lưu CCCD bằng chữ: hệ thống phải từ chối khi CCCD chứa chữ cái"""
+    token = get_admin_token(client)
+    headers = {"Authorization": f"Bearer {token}"}
+
+    # Thử tạo nhân viên với CCCD chứa chữ
+    res = client.post(
+        "/api/employees",
+        headers=headers,
+        json={
+            "ho_ten": "Nhân Viên CCCD Chữ",
+            "cccd": "07909abc1234"
+        }
+    )
+    assert res.status_code == 422
+    assert "chữ số" in str(res.json()).lower()
+
+    # Thử tạo với CCCD toàn chữ
+    res2 = client.post(
+        "/api/employees",
+        headers=headers,
+        json={
+            "ho_ten": "Nhân Viên CCCD Chữ 2",
+            "cccd": "abcdefghi"
+        }
+    )
+    assert res2.status_code == 422
+
+    # Thử cập nhật CCCD bằng chữ cho nhân viên đã có
+    create_res = client.post(
+        "/api/employees",
+        headers=headers,
+        json={"ho_ten": "Nhân Viên Hợp Lệ 1", "cccd": "079123456789"}
+    )
+    assert create_res.status_code == 201
+    emp_id = create_res.json()["id"]
+
+    update_res = client.put(
+        f"/api/employees/{emp_id}",
+        headers=headers,
+        json={"cccd": "079xyz999"}
+    )
+    assert update_res.status_code == 422
+
+
+def test_reject_phone_with_letters(client):
+    """Lỗi cho phép lưu số điện thoại bằng chữ: hệ thống phải từ chối khi SĐT chứa chữ cái"""
+    token = get_admin_token(client)
+    headers = {"Authorization": f"Bearer {token}"}
+
+    # Thử tạo nhân viên với SĐT chứa chữ
+    res = client.post(
+        "/api/employees",
+        headers=headers,
+        json={
+            "ho_ten": "Nhân Viên SĐT Chữ",
+            "so_dien_thoai": "090abc1234"
+        }
+    )
+    assert res.status_code == 422
+    assert "số điện thoại" in str(res.json()).lower()
+
+    # Thử tạo với SĐT toàn chữ
+    res2 = client.post(
+        "/api/employees",
+        headers=headers,
+        json={
+            "ho_ten": "Nhân Viên SĐT Chữ 2",
+            "so_dien_thoai": "abcdefghij"
+        }
+    )
+    assert res2.status_code == 422
+
+    # Thử cập nhật SĐT bằng chữ
+    create_res = client.post(
+        "/api/employees",
+        headers=headers,
+        json={"ho_ten": "Nhân Viên Hợp Lệ 2", "so_dien_thoai": "0961122334"}
+    )
+    assert create_res.status_code == 201
+    emp_id = create_res.json()["id"]
+
+    update_res = client.put(
+        f"/api/employees/{emp_id}",
+        headers=headers,
+        json={"so_dien_thoai": "096xyz1234"}
+    )
+    assert update_res.status_code == 422
+
+
+def test_reject_birth_date_today_or_future(client):
+    """Lỗi cho phép nhập ngày sinh là hôm nay: hệ thống phải từ chối khi ngày sinh là hôm nay hoặc tương lai"""
+    from datetime import date, timedelta
+    token = get_admin_token(client)
+    headers = {"Authorization": f"Bearer {token}"}
+
+    today_str = date.today().isoformat()
+    future_str = (date.today() + timedelta(days=1)).isoformat()
+
+    # 1. Thử tạo nhân viên có ngày sinh là hôm nay -> Bị từ chối
+    res_today = client.post(
+        "/api/employees",
+        headers=headers,
+        json={
+            "ho_ten": "Nhân Viên Sinh Hôm Nay",
+            "ngay_sinh": today_str
+        }
+    )
+    assert res_today.status_code == 422
+    assert "ngày sinh" in str(res_today.json()).lower()
+
+    # 2. Thử tạo nhân viên có ngày sinh trong tương lai -> Bị từ chối
+    res_future = client.post(
+        "/api/employees",
+        headers=headers,
+        json={
+            "ho_ten": "Nhân Viên Sinh Tương Lai",
+            "ngay_sinh": future_str
+        }
+    )
+    assert res_future.status_code == 422
+
+    # 3. Thử cập nhật ngày sinh thành hôm nay cho nhân viên đã có
+    create_res = client.post(
+        "/api/employees",
+        headers=headers,
+        json={"ho_ten": "Nhân Viên Hợp Lệ 3", "ngay_sinh": "2000-01-01"}
+    )
+    assert create_res.status_code == 201
+    emp_id = create_res.json()["id"]
+
+    update_res = client.put(
+        f"/api/employees/{emp_id}",
+        headers=headers,
+        json={"ngay_sinh": today_str}
+    )
+    assert update_res.status_code == 422
+
+

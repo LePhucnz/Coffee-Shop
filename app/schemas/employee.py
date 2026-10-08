@@ -1,8 +1,45 @@
+import re
 from typing import Optional, List
 from datetime import date, datetime
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
-class NhanVienBase(BaseModel):
+class NhanVienValidationMixin(BaseModel):
+    @field_validator("cccd", check_fields=False)
+    @classmethod
+    def validate_cccd(cls, v: Optional[str]) -> Optional[str]:
+        if v is None:
+            return None
+        v = v.strip()
+        if not v:
+            return None
+        if not re.match(r"^(\d{9}|\d{12})$", v):
+            raise ValueError("CCCD/CMND chỉ được chứa chữ số và phải gồm 9 hoặc 12 số")
+        return v
+
+    @field_validator("so_dien_thoai", check_fields=False)
+    @classmethod
+    def validate_so_dien_thoai(cls, v: Optional[str]) -> Optional[str]:
+        if v is None:
+            return None
+        v = v.strip()
+        if not v:
+            return None
+        cleaned = re.sub(r"[\s.-]", "", v)
+        if not re.match(r"^(?:0|\+84)\d{9}$", cleaned):
+            raise ValueError("Số điện thoại không hợp lệ (phải gồm 10 chữ số bắt đầu bằng số 0 và không chứa chữ cái)")
+        return cleaned
+
+    @field_validator("ngay_sinh", check_fields=False)
+    @classmethod
+    def validate_ngay_sinh(cls, v: Optional[date]) -> Optional[date]:
+        if v is not None:
+            if v >= date.today():
+                raise ValueError("Ngày sinh phải trước ngày hôm nay (không được là ngày hôm nay hoặc tương lai)")
+            if v.year < 1900:
+                raise ValueError("Năm sinh không hợp lệ")
+        return v
+
+class NhanVienBase(NhanVienValidationMixin):
     ma_nhan_vien: Optional[str] = None
     ma_cua_hang: Optional[int] = None
     ma_vi_tri: Optional[int] = None
@@ -25,7 +62,7 @@ class NhanVienCreate(NhanVienBase):
     mat_khau: Optional[str] = None
     ma_vai_tro: Optional[int] = 3
 
-class NhanVienUpdate(BaseModel):
+class NhanVienUpdate(NhanVienValidationMixin):
     ma_nhan_vien: Optional[str] = None
     ma_cua_hang: Optional[int] = None
     ma_vi_tri: Optional[int] = None

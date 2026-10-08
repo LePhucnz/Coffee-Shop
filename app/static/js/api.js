@@ -79,7 +79,9 @@ const API = {
         const data = await res.json().catch(() => ({}));
         if (!res.ok) {
             let msg = data.detail || "Đã xảy ra lỗi, vui lòng thử lại";
-            if (Array.isArray(msg)) msg = msg.map(d => d.msg).join("; ");
+            if (Array.isArray(msg)) {
+                msg = msg.map(d => (d.msg || "").replace(/^Value error,\s*/i, "")).join("; ");
+            }
             throw new Error(msg);
         }
         return data;

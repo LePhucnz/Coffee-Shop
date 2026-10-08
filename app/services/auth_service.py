@@ -1,3 +1,4 @@
+import re
 from datetime import datetime, timedelta
 from typing import Optional, Tuple
 from sqlalchemy.orm import Session
@@ -150,6 +151,13 @@ class AuthService:
         # Kiểm tra trùng lặp email
         if email and db.query(NhanVien).filter(NhanVien.email == email).first():
             return None, f"Email '{email}' đã được đăng ký cho nhân viên khác"
+
+        # Kiểm tra định dạng số điện thoại
+        if so_dien_thoai:
+            cleaned_phone = re.sub(r"[\s.-]", "", so_dien_thoai.strip())
+            if not re.match(r"^(?:0|\+84)\d{9}$", cleaned_phone):
+                return None, "Số điện thoại không hợp lệ (phải gồm 10 chữ số bắt đầu bằng số 0 và không chứa chữ cái)"
+            so_dien_thoai = cleaned_phone
 
         # Kiểm tra trùng lặp số điện thoại
         if so_dien_thoai and db.query(NhanVien).filter(NhanVien.so_dien_thoai == so_dien_thoai).first():

@@ -111,6 +111,15 @@ function renderTable() {
     }).join("");
 }
 
+function getMaxBirthDate() {
+    const d = new Date();
+    d.setDate(d.getDate() - 1);
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth() + 1).padStart(2, "0");
+    const dd = String(d.getDate()).padStart(2, "0");
+    return `${yyyy}-${mm}-${dd}`;
+}
+
 function bindEvents() {
     let timer;
     document.getElementById("search-keyword").addEventListener("input", () => {
@@ -129,6 +138,68 @@ function bindEvents() {
         const file = e.target.files[0];
         if (file) setAvatarPreview(URL.createObjectURL(file));
     });
+
+    // 1. Chặn nhập chữ cho số điện thoại (chỉ cho phép số và dấu + ở đầu)
+    const phoneInput = document.getElementById("emp-phone");
+    if (phoneInput) {
+        phoneInput.addEventListener("keydown", e => {
+            if (["Backspace", "Delete", "Tab", "Escape", "Enter", "ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", "Home", "End"].includes(e.key) ||
+                (e.ctrlKey || e.metaKey)) {
+                return;
+            }
+            if (e.key === "+" && e.target.selectionStart === 0 && !e.target.value.includes("+")) {
+                return;
+            }
+            if (!/^\d$/.test(e.key)) {
+                e.preventDefault();
+            }
+        });
+        phoneInput.addEventListener("input", e => {
+            let val = e.target.value;
+            if (val.startsWith("+")) {
+                val = "+" + val.slice(1).replace(/\D/g, "");
+            } else {
+                val = val.replace(/\D/g, "");
+            }
+            if (val.length > 11) val = val.slice(0, 11);
+            e.target.value = val;
+        });
+    }
+
+    // 2. Chặn nhập chữ cho CCCD (chỉ cho phép chữ số, tối đa 12 số)
+    const cccdInput = document.getElementById("emp-cccd");
+    if (cccdInput) {
+        cccdInput.addEventListener("keydown", e => {
+            if (["Backspace", "Delete", "Tab", "Escape", "Enter", "ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", "Home", "End"].includes(e.key) ||
+                (e.ctrlKey || e.metaKey)) {
+                return;
+            }
+            if (!/^\d$/.test(e.key)) {
+                e.preventDefault();
+            }
+        });
+        cccdInput.addEventListener("input", e => {
+            e.target.value = e.target.value.replace(/\D/g, "").slice(0, 12);
+        });
+    }
+
+    // 3. Chặn chọn/nhập ngày sinh là hôm nay hoặc tương lai
+    const dobInput = document.getElementById("emp-dob");
+    if (dobInput) {
+        const maxDob = getMaxBirthDate();
+        dobInput.setAttribute("max", maxDob);
+
+        const validateDob = () => {
+            const limit = getMaxBirthDate();
+            if (dobInput.value && dobInput.value > limit) {
+                showToast("Ngày sinh không hợp lệ: phải trước ngày hôm nay (không được là hôm nay hoặc tương lai)", "warning");
+                dobInput.value = "";
+            }
+        };
+        dobInput.addEventListener("change", validateDob);
+        dobInput.addEventListener("input", validateDob);
+        dobInput.addEventListener("blur", validateDob);
+    }
 
     document.getElementById("employee-form").addEventListener("submit", saveEmployee);
 }
@@ -172,6 +243,11 @@ function openEmployeeModal(id = null) {
             document.getElementById(inputId).value = emp[field] ?? "";
         });
     }
+    // Giới hạn ngày sinh tối đa là hôm qua (không được chọn hôm nay hoặc tương lai)
+    const maxDob = getMaxBirthDate();
+    const dobInput = document.getElementById("emp-dob");
+    if (dobInput) dobInput.setAttribute("max", maxDob);
+
     setAvatarPreview(emp ? emp.anh_dai_dien : null);
     document.getElementById("employee-modal").classList.remove("hidden");
 }
@@ -199,6 +275,34 @@ async function saveEmployee(e) {
     const payload = collectForm();
     const btn = document.getElementById("emp-submit");
     btn.disabled = true;
+
+    // Kiểm tra hợp lệ dữ liệu phía client
+    if (payload.ngay_sinh) {
+        const todayStr = new Date().toISOString().split("T")[0];
+        if (payload.ngay_sinh >= todayStr) {
+            showToast("Ngày sinh không hợp lệ: phải trước ngày hôm nay", "error");
+            btn.disabled = false;
+            return;
+        }
+    }
+
+    if (payload.so_dien_thoai) {
+        const cleanedPhone = payload.so_dien_thoai.replace(/[\s.-]/g, "");
+        if (!/^(?:0|\+84)\d{9}$/.test(cleanedPhone)) {
+            showToast("Số điện thoại không hợp lệ: phải gồm 10 chữ số bắt đầu bằng số 0 và không chứa chữ cái", "error");
+            btn.disabled = false;
+            return;
+        }
+        payload.so_dien_thoai = cleanedPhone;
+    }
+
+    if (payload.cccd) {
+        if (!/^(\d{9}|\d{12})$/.test(payload.cccd)) {
+            showToast("CMND/CCCD không hợp lệ: chỉ được chứa chữ số và phải gồm 9 hoặc 12 chữ số", "error");
+            btn.disabled = false;
+            return;
+        }
+    }
 
     try {
         let saved;
