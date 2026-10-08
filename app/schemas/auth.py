@@ -1,6 +1,7 @@
+import re
 from typing import Optional
 from datetime import datetime
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 class LoginRequest(BaseModel):
     ten_dang_nhap: str = Field(..., description="Tên đăng nhập, email hoặc số điện thoại")
@@ -18,6 +19,19 @@ class RegisterRequest(BaseModel):
     ma_vai_tro: Optional[int] = 3  # Mặc định Staff
     ma_cua_hang: Optional[int] = None
     ma_vi_tri: Optional[int] = None
+
+    @field_validator("so_dien_thoai")
+    @classmethod
+    def validate_so_dien_thoai(cls, v: Optional[str]) -> Optional[str]:
+        if v is None:
+            return None
+        v = v.strip()
+        if not v:
+            return None
+        cleaned = re.sub(r"[\s.-]", "", v)
+        if not re.match(r"^(?:0|\+84)\d{9}$", cleaned):
+            raise ValueError("Số điện thoại không hợp lệ (phải gồm 10 chữ số bắt đầu bằng số 0 và không chứa chữ cái)")
+        return cleaned
 
 class ForgotPasswordRequest(BaseModel):
     email: str
