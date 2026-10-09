@@ -1,0 +1,127 @@
+{% extends "_layout.html" %}
+
+{% block content %}
+<!-- Header -->
+<div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-6 border-b border-[#f0e9df]">
+    <div>
+        <h1 class="text-3xl font-extrabold text-[#18181b] tracking-tight">Xếp ca làm việc</h1>
+        <p class="text-sm text-[#71717a] mt-1 font-medium">Xếp ca tự động theo nguyện vọng, chỉnh sửa thủ công rồi công bố cho nhân viên</p>
+    </div>
+    <div class="flex flex-wrap gap-3">
+        <button type="button" id="btn-auto" class="btn-outline-brand">⚡ Xếp ca tự động</button>
+        <button type="button" id="btn-publish" class="btn-primary px-5">Công bố lịch</button>
+        <button type="button" id="btn-unpublish" class="btn-outline-brand" style="display: none">Chuyển về nháp để sửa</button>
+    </div>
+</div>
+
+<!-- Chọn tuần + trạng thái -->
+<div class="flex flex-wrap items-center justify-between gap-3 mt-6">
+    <div class="flex items-center gap-2">
+        <button type="button" id="week-prev" class="btn-outline-brand px-3" title="Tuần trước">&larr;</button>
+        <div class="px-4 py-2 rounded-xl bg-white border border-[#e6dfd5] text-sm font-bold whitespace-nowrap">
+            Tuần <span id="week-label">...</span>
+        </div>
+        <button type="button" id="week-next" class="btn-outline-brand px-3" title="Tuần sau">&rarr;</button>
+    </div>
+    <div class="flex flex-wrap items-center gap-3 text-xs text-[#71717a]">
+        <span id="deadline-label"></span>
+        <span id="week-status" class="inline-flex px-3 py-1.5 rounded-full font-bold"></span>
+    </div>
+</div>
+
+<!-- Thống kê nhanh -->
+<div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-6">
+    <div class="dash-card p-5">
+        <span class="text-xs font-bold text-[#71717a] uppercase tracking-wider">Lượt ca đã xếp</span>
+        <div id="stat-total" class="text-2xl font-extrabold mt-1">-</div>
+    </div>
+    <div class="dash-card p-5">
+        <span class="text-xs font-bold text-[#dc2626] uppercase tracking-wider">Lỗi xung đột (chặn công bố)</span>
+        <div id="stat-errors" class="text-2xl font-extrabold text-[#dc2626] mt-1">-</div>
+    </div>
+    <div class="dash-card p-5">
+        <span class="text-xs font-bold text-amber-700 uppercase tracking-wider">Cảnh báo</span>
+        <div id="stat-warnings" class="text-2xl font-extrabold text-amber-700 mt-1">-</div>
+    </div>
+</div>
+
+<!-- Chú thích -->
+<div class="flex flex-wrap gap-4 mt-6 text-xs text-[#52525b]">
+    <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded bg-emerald-100 border border-emerald-300"></span> Đủ người</span>
+    <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded bg-amber-50 border border-amber-300"></span> Thiếu / thừa người</span>
+    <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded bg-red-100 border border-red-400"></span> Nhân viên bị xung đột</span>
+    <span class="flex items-center gap-1.5">★ Theo nguyện vọng</span>
+</div>
+
+<!-- Lưới ca (FR-08 grid view, FR-09 cảnh báo tại ô) -->
+<div class="dash-card p-0 mt-3 overflow-hidden">
+    <div class="overflow-x-auto">
+        <table class="w-full text-left border-collapse min-w-[960px]">
+            <thead>
+                <tr id="grid-head" class="bg-[#eee7db]/80 text-xs font-bold text-[#52525b]"></tr>
+            </thead>
+            <tbody id="grid-body" class="divide-y divide-[#f5efe6] text-sm">
+                <tr><td class="py-10 text-center text-[#71717a]">Đang tải dữ liệu...</td></tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
+    <!-- Danh sách xung đột -->
+    <div class="dash-card p-5">
+        <h2 class="text-sm font-bold uppercase tracking-wider text-[#52525b] mb-3">Xung đột và cảnh báo</h2>
+        <ul id="conflict-list" class="space-y-2 text-sm"></ul>
+    </div>
+    <!-- Tổng giờ từng nhân viên -->
+    <div class="dash-card p-5">
+        <h2 class="text-sm font-bold uppercase tracking-wider text-[#52525b] mb-3">Tổng giờ trong tuần</h2>
+        <table class="w-full text-sm">
+            <thead><tr class="text-xs text-[#71717a]"><th class="text-left py-1">Nhân viên</th><th class="text-right py-1">Số ca</th><th class="text-right py-1">Số giờ</th></tr></thead>
+            <tbody id="hours-body"></tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Cấu hình loại ca (FR-08: số nhân viên tối thiểu/tối đa) -->
+<div class="dash-card p-5 mt-6">
+    <div class="flex flex-wrap items-center justify-between gap-3 mb-3">
+        <h2 class="text-sm font-bold uppercase tracking-wider text-[#52525b]">Cấu hình ca và nhu cầu nhân lực</h2>
+        <button type="button" id="btn-add-type" class="btn-outline-brand text-sm">+ Thêm loại ca</button>
+    </div>
+    <div class="overflow-x-auto">
+        <table class="w-full text-sm min-w-[760px]">
+            <thead>
+                <tr class="text-xs text-[#71717a] text-left">
+                    <th class="py-2 pr-2">Mã</th><th class="py-2 pr-2">Tên ca</th><th class="py-2 pr-2">Bắt đầu</th><th class="py-2 pr-2">Kết thúc</th>
+                    <th class="py-2 pr-2">Tối thiểu</th><th class="py-2 pr-2">Tối đa</th><th class="py-2 pr-2">Dùng</th><th></th>
+                </tr>
+            </thead>
+            <tbody id="types-body"></tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Modal thêm nhân viên vào ô ca -->
+<div id="assign-modal" class="hidden fixed inset-0 z-50 bg-black/50 flex items-start justify-center p-4 overflow-y-auto">
+    <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 my-16 fade-in">
+        <div class="flex items-center justify-between pb-4 mb-4 border-b border-[#f0e9df]">
+            <h3 class="text-lg font-bold">Thêm nhân viên vào ca</h3>
+            <button type="button" onclick="closeAssignModal()" class="text-2xl leading-none text-[#71717a] hover:text-black">&times;</button>
+        </div>
+        <p id="assign-slot-label" class="text-sm text-[#52525b] mb-3"></p>
+        <form id="assign-form" class="space-y-4">
+            <select id="assign-employee" required class="form-input"></select>
+            <p class="text-xs text-[#71717a]">Chỉ hiện nhân viên đang làm việc. Nhân viên nghỉ phép hoặc đã nghỉ việc không được xếp ca.</p>
+            <div class="flex justify-end gap-3">
+                <button type="button" onclick="closeAssignModal()" class="btn-outline-brand">Hủy</button>
+                <button type="submit" class="btn-primary px-6">Thêm vào ca</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/js/schedule.js"></script>
+{% endblock %}

@@ -69,14 +69,35 @@
                     {% if active == 'profile' %}<span class="sidebar-indicator"></span>{% endif %}
                 </a>
 
-                <a href="#shifts" class="sidebar-link opacity-50 cursor-not-allowed" title="Sprint 4">
+                <!-- Sprint 4: Xếp ca (Manager), Đăng ký ca (Staff), Lịch làm của tôi (tất cả) -->
+                <a href="/schedule" class="sidebar-link admin-only {% if active == 'schedule' %}active{% endif %}">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                         <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
                         <line x1="16" y1="2" x2="16" y2="6"></line>
                         <line x1="8" y1="2" x2="8" y2="6"></line>
                         <line x1="3" y1="10" x2="21" y2="10"></line>
                     </svg>
-                    <span>Ca</span>
+                    <span>Xếp ca</span>
+                    {% if active == 'schedule' %}<span class="sidebar-indicator"></span>{% endif %}
+                </a>
+
+                <a href="/shift-registration" class="sidebar-link staff-only {% if active == 'shift-registration' %}active{% endif %}">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <path d="M9 11l3 3L22 4"></path>
+                        <path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"></path>
+                    </svg>
+                    <span>Đăng ký ca</span>
+                    {% if active == 'shift-registration' %}<span class="sidebar-indicator"></span>{% endif %}
+                </a>
+
+                <a href="/my-schedule" class="sidebar-link {% if active == 'my-schedule' %}active{% endif %}">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <circle cx="12" cy="12" r="9"></circle>
+                        <polyline points="12 7 12 12 15 14"></polyline>
+                    </svg>
+                    <span>Lịch làm của tôi</span>
+                    <span id="nav-notif-count" class="hidden ml-auto min-w-[20px] h-5 px-1.5 rounded-full bg-[#dc2626] text-white text-[11px] font-bold flex items-center justify-center"></span>
+                    {% if active == 'my-schedule' %}<span class="sidebar-indicator"></span>{% endif %}
                 </a>
 
                 <a href="#attendance" class="sidebar-link opacity-50 cursor-not-allowed" title="Sprint 5">
@@ -121,9 +142,12 @@
         <!-- Mobile top bar -->
         <div class="md:hidden flex items-center justify-between mb-4">
             <a href="/dashboard" class="font-bold text-lg">☕ QL Ca Làm</a>
-            <div class="flex gap-3 text-sm font-semibold">
+            <div class="flex flex-wrap justify-end gap-x-3 gap-y-1 text-sm font-semibold">
                 <a href="/employees" class="admin-only text-[#cf6800]">Nhân sự</a>
                 <a href="/contracts" class="admin-only text-[#cf6800]">Hợp đồng</a>
+                <a href="/schedule" class="admin-only text-[#cf6800]">Xếp ca</a>
+                <a href="/shift-registration" class="staff-only text-[#cf6800]">Đăng ký ca</a>
+                <a href="/my-schedule" class="text-[#cf6800]">Lịch</a>
                 <a href="/profile" class="text-[#cf6800]">Hồ sơ</a>
             </div>
         </div>

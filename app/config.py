@@ -16,6 +16,16 @@ class Settings:
     MAX_FAILED_ATTEMPTS: int = 5
     LOCKOUT_MINUTES: int = 15
     
+    # Sprint 4 (FR-07): hạn chót đăng ký nguyện vọng ca cho tuần kế tiếp
+    # Thứ trong tuần theo Python: 0 = Thứ Hai ... 3 = Thứ Năm ... 6 = Chủ Nhật
+    REGISTRATION_DEADLINE_WEEKDAY: int = 3
+    REGISTRATION_DEADLINE_HOUR: int = 23
+    REGISTRATION_DEADLINE_MINUTE: int = 59
+
+    # Sprint 4 (FR-09): ngưỡng giờ làm tối đa
+    MAX_HOURS_PER_DAY: float = 8
+    MAX_HOURS_PER_WEEK: float = 48
+
     # Database
     DATABASE_URL: str = os.getenv("DATABASE_URL", f"sqlite:///{BASE_DIR / 'qlcl.db'}")
 
