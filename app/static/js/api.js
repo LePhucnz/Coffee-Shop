@@ -101,9 +101,22 @@ const API = {
         if (nameEl) nameEl.textContent = name;
         if (roleEl) roleEl.textContent = ROLE_LABELS[user.ten_vai_tro] || user.ten_vai_tro || "Nhân viên";
         if (avatarEl) avatarEl.textContent = name.trim().split(" ").pop().charAt(0).toUpperCase();
-        // Ẩn menu quản trị với Staff
-        if (!this.isAdmin()) {
-            document.querySelectorAll(".admin-only").forEach(el => { el.style.display = "none"; });
+        // Ẩn menu quản trị với Staff, ẩn menu chỉ dành cho Staff với Admin/Manager
+        const hideClass = this.isAdmin() ? ".staff-only" : ".admin-only";
+        document.querySelectorAll(hideClass).forEach(el => { el.style.display = "none"; });
+        this.loadNotificationBadge();
+    },
+
+    // Sprint 4: số thông báo chưa đọc hiện cạnh menu "Lịch làm của tôi"
+    async loadNotificationBadge() {
+        const badge = document.getElementById("nav-notif-count");
+        if (!badge) return;
+        try {
+            const data = await this.request("/api/notifications/me?limit=1");
+            badge.textContent = data.so_chua_doc > 9 ? "9+" : data.so_chua_doc;
+            badge.classList.toggle("hidden", !data.so_chua_doc);
+        } catch (e) {
+            badge.classList.add("hidden");
         }
     }
 };
@@ -172,3 +185,64 @@ function showToast(message, type = "success") {
     setTimeout(() => toast.remove(), 4000);
 }
 window.showToast = showToast;
+
+// ---------- Sprint 4: tiện ích ngày/tuần cho trang xếp ca ----------
+const WEEKDAY_SHORT = ["T2", "T3", "T4", "T5", "T6", "T7", "CN"];
+
+function toISODate(d) {
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, "0");
+    const day = String(d.getDate()).padStart(2, "0");
+    return `${y}-${m}-${day}`;
+}
+
+function parseISODate(value) {
+    const [y, m, d] = String(value).substring(0, 10).split("-").map(Number);
+    return new Date(y, m - 1, d);
+}
+
+function addDays(value, n) {
+    const d = typeof value === "string" ? parseISODate(value) : new Date(value);
+    d.setDate(d.getDate() + n);
+    return toISODate(d);
+}
+
+function mondayOf(value) {
+    const d = typeof value === "string" ? parseISODate(value) : new Date(value);
+    const offset = (d.getDay() + 6) % 7; // Thứ Hai = 0
+    d.setDate(d.getDate() - offset);
+    return toISODate(d);
+}
+
+function formatTime(value) {
+    return value ? String(value).substring(0, 5) : "--:--";
+}
+
+function formatDateTime(value) {
+    if (!value) return "-";
+    const d = new Date(value);
+    const pad = n => String(n).padStart(2, "0");
+    return `${pad(d.getHours())}:${pad(d.getMinutes())} ${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear()}`;
+}
+
+function dayLabel(iso) {
+    const d = parseISODate(iso);
+    return `${WEEKDAY_SHORT[(d.getDay() + 6) % 7]} ${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}`;
+}
+
+function weekRangeLabel(startIso) {
+    return `${formatDate(startIso)} - ${formatDate(addDays(startIso, 6))}`;
+}
+
+// Tuần đang xem lưu trên URL (?week=YYYY-MM-DD) để tải lại trang không bị mất
+function getWeekFromUrl(defaultOffsetWeeks) {
+    const fromUrl = new URLSearchParams(window.location.search).get("week");
+    if (fromUrl && /^\d{4}-\d{2}-\d{2}$/.test(fromUrl)) return mondayOf(fromUrl);
+    return mondayOf(addDays(toISODate(new Date()), 7 * defaultOffsetWeeks));
+}
+
+function setWeekInUrl(week) {
+    const url = new URL(window.location.href);
+    url.searchParams.set("week", week);
+    window.history.replaceState(null, "", url);
+}

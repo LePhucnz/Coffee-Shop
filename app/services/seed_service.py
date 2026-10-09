@@ -1,4 +1,4 @@
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, time, timedelta
 from sqlalchemy.orm import Session
 from app.models.system import CuaHang, ViTri, VaiTro
 from app.models.employee import NhanVien, HopDong
@@ -9,6 +9,7 @@ from app.core.security import get_password_hash
 def seed_database(db: Session):
     """Nạp dữ liệu mẫu ban đầu nếu cơ sở dữ liệu trống"""
     if db.query(VaiTro).first():
+        seed_shift_types(db)
         return  # Đã có dữ liệu, không nạp lại
 
     # 1. Vai trò (Roles)
@@ -40,10 +41,14 @@ def seed_database(db: Session):
 
     # 4. Loại ca làm việc
     loai_ca_data = [
-        LoaiCa(id=1, ma_loai_ca="CA_SANG", mo_ta="06:00 - 14:00", trang_thai=True),
-        LoaiCa(id=2, ma_loai_ca="CA_CHIEU", mo_ta="14:00 - 22:00", trang_thai=True),
-        LoaiCa(id=3, ma_loai_ca="CA_PARTTIME_1", mo_ta="08:00 - 12:00", trang_thai=True),
-        LoaiCa(id=4, ma_loai_ca="CA_PARTTIME_2", mo_ta="18:00 - 22:00", trang_thai=True)
+        LoaiCa(id=1, ma_loai_ca="CA_SANG", mo_ta="06:00 - 14:00", trang_thai=True,
+               ten_ca="Ca sáng", gio_bat_dau=time(6, 0), gio_ket_thuc=time(14, 0), so_nv_toi_thieu=1, so_nv_toi_da=2),
+        LoaiCa(id=2, ma_loai_ca="CA_CHIEU", mo_ta="14:00 - 22:00", trang_thai=True,
+               ten_ca="Ca chiều (cao điểm)", gio_bat_dau=time(14, 0), gio_ket_thuc=time(22, 0), so_nv_toi_thieu=2, so_nv_toi_da=3),
+        LoaiCa(id=3, ma_loai_ca="CA_PARTTIME_1", mo_ta="08:00 - 12:00", trang_thai=True,
+               ten_ca="Part-time sáng", gio_bat_dau=time(8, 0), gio_ket_thuc=time(12, 0), so_nv_toi_thieu=1, so_nv_toi_da=2),
+        LoaiCa(id=4, ma_loai_ca="CA_PARTTIME_2", mo_ta="18:00 - 22:00", trang_thai=True,
+               ten_ca="Part-time tối", gio_bat_dau=time(18, 0), gio_ket_thuc=time(22, 0), so_nv_toi_thieu=1, so_nv_toi_da=2)
     ]
     db.add_all(loai_ca_data)
     db.commit()
@@ -191,3 +196,43 @@ def seed_database(db: Session):
     ]
     db.add_all(hop_dong_data)
     db.commit()
+
+    seed_shift_types(db)
+
+
+# Sprint 4: tên ca, khung giờ và số nhân viên tối thiểu/tối đa cho các loại ca mẫu
+SHIFT_TYPE_DEFAULTS = {
+    "CA_SANG": ("Ca sáng", time(6, 0), time(14, 0), 1, 2),
+    "CA_CHIEU": ("Ca chiều (cao điểm)", time(14, 0), time(22, 0), 2, 3),
+    "CA_PARTTIME_1": ("Part-time sáng", time(8, 0), time(12, 0), 1, 2),
+    "CA_PARTTIME_2": ("Part-time tối", time(18, 0), time(22, 0), 1, 2),
+}
+
+def seed_shift_types(db: Session):
+    """
+    Sprint 4: bổ sung khung giờ cho các loại ca đã có.
+    Chỉ điền vào ô còn trống nên không ghi đè cấu hình Quản lý đã sửa.
+    """
+    changed = False
+    for loai_ca in db.query(LoaiCa).all():
+        defaults = SHIFT_TYPE_DEFAULTS.get(loai_ca.ma_loai_ca)
+        if not defaults:
+            continue
+        ten_ca, bat_dau, ket_thuc, toi_thieu, toi_da = defaults
+        if not loai_ca.ten_ca:
+            loai_ca.ten_ca = ten_ca
+            changed = True
+        if loai_ca.gio_bat_dau is None:
+            loai_ca.gio_bat_dau = bat_dau
+            changed = True
+        if loai_ca.gio_ket_thuc is None:
+            loai_ca.gio_ket_thuc = ket_thuc
+            changed = True
+        if loai_ca.so_nv_toi_thieu is None:
+            loai_ca.so_nv_toi_thieu = toi_thieu
+            changed = True
+        if loai_ca.so_nv_toi_da is None:
+            loai_ca.so_nv_toi_da = toi_da
+            changed = True
+    if changed:
+        db.commit()

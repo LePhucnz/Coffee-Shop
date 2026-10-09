@@ -22,3 +22,24 @@ def get_db():
         yield db
     finally:
         db.close()
+
+def add_missing_columns(bind=None):
+    """
+    Thêm các cột mới (khai báo trong model) vào bảng đã có sẵn trong CSDL.
+    create_all() chỉ tạo bảng mới, không thêm cột cho bảng cũ, nên file qlcl.db
+    tạo từ sprint trước sẽ thiếu cột. Hàm này giúp không phải xóa qlcl.db.
+    """
+    from sqlalchemy import inspect, text
+    bind = bind or engine
+    inspector = inspect(bind)
+    existing_tables = set(inspector.get_table_names())
+    with bind.begin() as conn:
+        for table in Base.metadata.sorted_tables:
+            if table.name not in existing_tables:
+                continue
+            existing_cols = {c["name"] for c in inspector.get_columns(table.name)}
+            for col in table.columns:
+                if col.name in existing_cols:
+                    continue
+                col_type = col.type.compile(dialect=bind.dialect)
+                conn.execute(text(f'ALTER TABLE {table.name} ADD COLUMN {col.name} {col_type}'))

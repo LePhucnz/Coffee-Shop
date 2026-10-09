@@ -66,4 +66,15 @@ async function loadDashboardStats() {
     } catch (e) {
         // Giữ nguyên giao diện nếu không lấy được thống kê
     }
+
+    // Sprint 4: số ca hôm nay và số ô ca thiếu người trong tuần (chỉ Admin/Manager)
+    if (!API.isAdmin()) return;
+    try {
+        const shifts = await API.request("/api/shifts/today");
+        document.getElementById("stat-shifts-today").textContent = shifts.so_ca_hom_nay;
+        document.getElementById("stat-understaffed").textContent =
+            shifts.so_o_thieu_tuan_nay === null ? "Chưa xếp" : shifts.so_o_thieu_tuan_nay;
+    } catch (e) {
+        // Bỏ qua nếu chưa có dữ liệu ca
+    }
 }

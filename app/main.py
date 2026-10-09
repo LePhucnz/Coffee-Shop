@@ -7,15 +7,20 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
 from app.config import settings, BASE_DIR
-from app.database import engine, Base, SessionLocal
+from app.database import engine, Base, SessionLocal, add_missing_columns
 import app.models  # Đăng ký toàn bộ metadata models
 from app.services.seed_service import seed_database
-from app.api import auth_router, employees_router, contracts_router, system_router
+from app.api import (
+    auth_router, employees_router, contracts_router, system_router,
+    shifts_router, notifications_router
+)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Khởi tạo bảng cơ sở dữ liệu nếu chưa có
     Base.metadata.create_all(bind=engine)
+    # Sprint 4: thêm cột mới vào bảng cũ (không cần xóa qlcl.db)
+    add_missing_columns(engine)
     # Nạp dữ liệu mẫu ban đầu
     db = SessionLocal()
     try:
@@ -27,7 +32,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title=settings.PROJECT_NAME,
     version=settings.VERSION,
-    description="Hệ thống Quản lý Nhân sự & Ca làm việc cho Quán Cà phê (Sprint 1 - 3: RBAC & HRM)",
+    description="Hệ thống Quản lý Nhân sự & Ca làm việc cho Quán Cà phê (Sprint 1 - 4: RBAC, HRM & Xếp ca)",
     lifespan=lifespan
 )
 
@@ -51,6 +56,8 @@ app.include_router(auth_router)
 app.include_router(employees_router)
 app.include_router(contracts_router)
 app.include_router(system_router)
+app.include_router(shifts_router)
+app.include_router(notifications_router)
 
 # UI Routes (Giao diện người dùng render bằng Jinja2)
 @app.get("/", response_class=HTMLResponse)
@@ -91,3 +98,15 @@ def contracts_page(request: Request):
 def profile_page(request: Request):
     return templates.TemplateResponse(request=request, name="profile.html", context={"title": "Hồ sơ của tôi", "active": "profile"})
 
+# Sprint 4: Đăng ký lịch rảnh và xếp ca (FR-07, FR-08, FR-09)
+@app.get("/shift-registration", response_class=HTMLResponse)
+def shift_registration_page(request: Request):
+    return templates.TemplateResponse(request=request, name="shift-registration.html", context={"title": "Đăng ký ca", "active": "shift-registration"})
+
+@app.get("/schedule", response_class=HTMLResponse)
+def schedule_page(request: Request):
+    return templates.TemplateResponse(request=request, name="schedule.html", context={"title": "Xếp ca", "active": "schedule", "admin_only": True})
+
+@app.get("/my-schedule", response_class=HTMLResponse)
+def my_schedule_page(request: Request):
+    return templates.TemplateResponse(request=request, name="my-schedule.html", context={"title": "Lịch làm của tôi", "active": "my-schedule"})
