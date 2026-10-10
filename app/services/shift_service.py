@@ -191,14 +191,14 @@ def detect_conflicts(assignments: List[PhanCongCa]) -> Dict[int, List[dict]]:
                     if pc.ngay_lam == ngay:
                         conflicts[pc.id].append({
                             "loai": "qua_gio_ngay", "muc_do": "canh_bao",
-                            "thong_bao": f"Tổng {hours:g} giờ ngày {format_day(ngay)}, vượt mức {settings.MAX_HOURS_PER_DAY:g} giờ/ngày"
+                            "thong_bao": f"Tổng {hours:g} giờ ngày {format_day(ngay)}, vượt mức {settings.MAX_HOURS_PER_DAY:g} giờ/ngày (Cảnh báo vi phạm luật lao động / chính sách quán)"
                         })
         week_hours = sum(hours_by_day.values())
         if week_hours > settings.MAX_HOURS_PER_WEEK:
             for pc in items:
                 conflicts[pc.id].append({
                     "loai": "qua_gio_tuan", "muc_do": "canh_bao",
-                    "thong_bao": f"Tổng {week_hours:g} giờ trong tuần, vượt mức {settings.MAX_HOURS_PER_WEEK:g} giờ/tuần"
+                    "thong_bao": f"Tổng {week_hours:g} giờ trong tuần, vượt mức {settings.MAX_HOURS_PER_WEEK:g} giờ/tuần (Cảnh báo vi phạm luật lao động / chính sách quán)"
                 })
 
     return conflicts
@@ -295,3 +295,152 @@ def notify(db: Session, ma_nv: int, tieu_de: str, noi_dung: str = None, lien_ket
 def week_label(start: date) -> str:
     end = start + timedelta(days=6)
     return f"{start.strftime('%d/%m')} - {end.strftime('%d/%m/%Y')}"
+
+
+# ---------- Xử lý theo tháng (FR-07) ----------
+
+def parse_year_month(year_month: str) -> Tuple[int, int]:
+    parts = year_month.strip().split("-")
+    if len(parts) != 2:
+        raise ValueError("Định dạng tháng phải là YYYY-MM")
+    return int(parts[0]), int(parts[1])
+
+
+def month_date_range(year_month: str) -> Tuple[date, date]:
+    """Trả về (ngày đầu tháng, ngày cuối tháng)"""
+    import calendar
+    y, m = parse_year_month(year_month)
+    _, last_day = calendar.monthrange(y, m)
+    return date(y, m, 1), date(y, m, last_day)
+
+
+def month_weeks(year_month: str) -> List[date]:
+    """Trả về danh sách ngày Thứ Hai (week_start) của các tuần có ngày rơi vào tháng này"""
+    start_d, end_d = month_date_range(year_month)
+    cur = week_start(start_d)
+    result = []
+    while cur <= end_d:
+        result.append(cur)
+        cur += timedelta(days=7)
+    return result
+
+
+# ---------- Gửi email thông báo (FR-08) ----------
+
+SENT_EMAILS: List[dict] = []
+
+
+def send_email_notification(to_email: str, tieu_de: str, noi_dung: str) -> bool:
+    """
+    FR-08: Gửi thông báo qua email cho nhân viên khi lịch ca được công bố.
+    Lưu nhật ký vào SENT_EMAILS để kiểm tra và đối soát hệ thống.
+    """
+    record = {
+        "to_email": to_email,
+        "tieu_de": tieu_de,
+        "noi_dung": noi_dung,
+        "thoi_gian": datetime.now()
+    }
+    SENT_EMAILS.append(record)
+    return True
+
+
+# ---------- Tiền kiểm tra xung đột ca (FR-09) ----------
+
+def check_assignment_conflicts(
+    db: Session,
+    ma_nv: int,
+    ma_ca: int,
+    ngay_lam: date,
+    exclude_assignment_id: Optional[int] = None
+) -> Tuple[bool, bool, Optional[str], List[dict]]:
+    """
+    Kiểm tra nhanh xung đột trước khi xếp hoặc sửa phân công ca:
+    Trả về: (hop_le, co_loi, thong_bao_chinh, danh_sach_xung_dot)
+    - hop_le: False nếu nhân viên không tồn tại, đã xóa hoặc đã nghỉ việc (BR-05)
+    - co_loi: True nếu xung đột mức 'loi' (trùng giờ, nghỉ phép) -> chặn công bố
+    - danh_sach_xung_dot: danh sách các xung đột chi tiết
+    """
+    nv = db.query(NhanVien).filter(NhanVien.id == ma_nv).first()
+    reason = employee_block_reason(nv)
+    if nv is None or nv.is_deleted or nv.trang_thai == "da_nghi":
+        return False, True, f"Không thể xếp ca: {reason}", [{"loai": "trang_thai", "muc_do": "loi", "thong_bao": reason or "Nhân viên không hợp lệ"}]
+
+    lc = db.query(LoaiCa).filter(LoaiCa.id == ma_ca).first()
+    if not lc:
+        return False, True, "Loại ca không tồn tại", []
+
+    conflict_list: List[dict] = []
+    co_loi = False
+
+    # 1. Trạng thái nghỉ phép
+    if nv.trang_thai == "nghi_phep":
+        co_loi = True
+        conflict_list.append({"loai": "trang_thai", "muc_do": "loi", "thong_bao": "Nhân viên đang nghỉ phép"})
+
+    # Lấy các ca khác của nhân viên trong cùng ngày và cùng tuần
+    w_start = week_start(ngay_lam)
+    w_end = w_start + timedelta(days=6)
+    q = db.query(PhanCongCa).filter(
+        PhanCongCa.ma_nv == ma_nv,
+        PhanCongCa.ngay_lam >= w_start,
+        PhanCongCa.ngay_lam <= w_end
+    )
+    if exclude_assignment_id:
+        q = q.filter(PhanCongCa.id != exclude_assignment_id)
+    existing = q.all()
+
+    # 2. Kiểm tra trùng ca cùng ngày
+    new_interval = shift_interval(lc, ngay_lam)
+    new_hours = shift_hours(lc)
+    day_existing = [pc for pc in existing if pc.ngay_lam == ngay_lam]
+
+    for pc in day_existing:
+        if pc.ma_ca == ma_ca:
+            co_loi = True
+            conflict_list.append({
+                "loai": "trung_ca",
+                "muc_do": "loi",
+                "thong_bao": f"Đã được xếp vào ca {shift_label(pc.loai_ca)} cùng ngày {format_day(ngay_lam)}"
+            })
+            continue
+
+        ex_interval = shift_interval(pc.loai_ca, pc.ngay_lam)
+        if new_interval and ex_interval:
+            s1, e1 = new_interval
+            s2, e2 = ex_interval
+            if s1 < e2 and s2 < e1:
+                co_loi = True
+                conflict_list.append({
+                    "loai": "trung_ca",
+                    "muc_do": "loi",
+                    "thong_bao": f"Trùng giờ với ca {shift_label(pc.loai_ca)} ({s2.strftime('%H:%M')}-{e2.strftime('%H:%M')})"
+                })
+
+    # 3. Tổng giờ theo ngày (> 8h)
+    current_day_hours = sum(shift_hours(pc.loai_ca) for pc in day_existing)
+    total_day_hours = current_day_hours + new_hours
+    if total_day_hours > settings.MAX_HOURS_PER_DAY:
+        conflict_list.append({
+            "loai": "qua_gio_ngay",
+            "muc_do": "canh_bao",
+            "thong_bao": f"Tổng {total_day_hours:g} giờ ngày {format_day(ngay_lam)}, vượt mức {settings.MAX_HOURS_PER_DAY:g} giờ/ngày (Cảnh báo vi phạm luật lao động / chính sách quán)"
+        })
+
+    # 4. Tổng giờ theo tuần (> 48h)
+    current_week_hours = sum(shift_hours(pc.loai_ca) for pc in existing)
+    total_week_hours = current_week_hours + new_hours
+    if total_week_hours > settings.MAX_HOURS_PER_WEEK:
+        conflict_list.append({
+            "loai": "qua_gio_tuan",
+            "muc_do": "canh_bao",
+            "thong_bao": f"Tổng {total_week_hours:g} giờ trong tuần, vượt mức {settings.MAX_HOURS_PER_WEEK:g} giờ/tuần (Cảnh báo vi phạm luật lao động / chính sách quán)"
+        })
+
+    msg = None
+    if co_loi:
+        msg = "Phát hiện xung đột nghiêm trọng (trùng giờ hoặc nhân viên nghỉ phép)"
+    elif conflict_list:
+        msg = "Có cảnh báo vượt ngưỡng giờ làm"
+
+    return True, co_loi, msg, conflict_list

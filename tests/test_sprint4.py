@@ -346,3 +346,156 @@ def test_sprint4_pages_render(client, path):
     res = client.get(path)
     assert res.status_code == 200
     assert "<html" in res.text
+
+
+# ---------- Bổ sung test kiểm tra toàn diện FR-07, FR-08, FR-09 ----------
+
+def test_monthly_registration_and_deadline(client):
+    headers = staff_c(client)
+    ids = shift_ids(client, headers)
+    # Chọn một tháng tương lai chắc chắn còn mở (ví dụ 6 tháng tới)
+    future_date = date.today() + timedelta(days=180)
+    month_str = future_date.strftime("%Y-%m")
+    day1 = date(future_date.year, future_date.month, 10).isoformat()
+    day2 = date(future_date.year, future_date.month, 11).isoformat()
+
+    # Đăng ký theo tháng
+    res = client.put("/api/shifts/registrations/month", headers=headers, json={
+        "thang": month_str,
+        "dang_ky": [
+            {"ngay": day1, "ma_ca": ids["CA_SANG"]},
+            {"ngay": day2, "ma_ca": ids["CA_CHIEU"]}
+        ]
+    })
+    assert res.status_code == 200, res.text
+    data = res.json()
+    assert data["thang"] == month_str
+    assert data["tong_ca_dang_ky"] == 2
+    assert len(data["tuan_trong_thang"]) >= 4
+
+    # Xem lại nguyện vọng tháng
+    got = client.get(f"/api/shifts/registrations/month?month={month_str}", headers=headers).json()
+    assert got["tong_ca_dang_ky"] == 2
+    assert {d["ngay"] for d in got["dang_ky"]} == {day1, day2}
+
+    # Hủy nguyện vọng theo tháng
+    del_res = client.delete(f"/api/shifts/registrations/me?month={month_str}", headers=headers)
+    assert del_res.status_code == 200
+    got_after = client.get(f"/api/shifts/registrations/month?month={month_str}", headers=headers).json()
+    assert got_after["tong_ca_dang_ky"] == 0
+
+    # Thử đăng ký cho tháng trong quá khứ đã bị khóa -> 400
+    past_month = "2020-01"
+    bad_res = client.put("/api/shifts/registrations/month", headers=headers, json={
+        "thang": past_month,
+        "dang_ky": [{"ngay": "2020-01-15", "ma_ca": ids["CA_SANG"]}]
+    })
+    assert bad_res.status_code == 400
+
+
+def test_manager_can_list_employee_registrations(client):
+    admin = admin_headers(client)
+    staff = staff_c(client)
+    ids = shift_ids(client, admin)
+    week = future_week(12)
+
+    # Nhân viên đăng ký ca
+    client.put("/api/shifts/registrations/me", headers=staff, json={
+        "tuan_bat_dau": week.isoformat(),
+        "dang_ky": [{"ngay": day(week, 1), "ma_ca": ids["CA_SANG"]}]
+    })
+
+    # Quản lý xem danh sách đăng ký theo tuần
+    res = client.get(f"/api/shifts/registrations?week={week.isoformat()}", headers=admin)
+    assert res.status_code == 200, res.text
+    items = res.json()
+    assert any(i["ngay_dang_ky"] == day(week, 1) and i["ma_ca"] == ids["CA_SANG"] for i in items)
+
+    # Nhân viên thông thường không có quyền truy cập API quản lý này
+    assert client.get(f"/api/shifts/registrations?week={week.isoformat()}", headers=staff).status_code == 403
+
+
+def test_manual_assignment_update_and_clear_schedule(client):
+    admin = admin_headers(client)
+    ids = shift_ids(client, admin)
+    week = future_week(13)
+    emp = create_employee(client, admin, ho_ten="Nhân Viên Chỉnh Sửa Thủ Công")
+
+    # Thêm thủ công phân công
+    res = add(client, admin, emp["id"], ids["CA_SANG"], day(week, 0))
+    assert res.status_code == 201
+    pc_id = next(p["id"] for p in res.json()["phan_cong"] if p["ma_nv"] == emp["id"])
+
+    # Quản lý chỉnh sửa phân công ca (đổi sang Ca Chiều ngày 1)
+    upd_res = client.put(f"/api/shifts/assignments/{pc_id}", headers=admin, json={
+        "ma_nv": emp["id"],
+        "ma_ca": ids["CA_CHIEU"],
+        "ngay_lam": day(week, 1)
+    })
+    assert upd_res.status_code == 200, upd_res.text
+    updated_pc = next(p for p in upd_res.json()["phan_cong"] if p["id"] == pc_id)
+    assert updated_pc["ma_ca"] == ids["CA_CHIEU"]
+    assert updated_pc["ngay_lam"] == day(week, 1)
+
+    # Xóa toàn bộ lịch nháp của tuần
+    clear_res = client.delete(f"/api/shifts/schedule/clear?week={week.isoformat()}", headers=admin)
+    assert clear_res.status_code == 200
+    assert len(clear_res.json()["phan_cong"]) == 0
+
+
+def test_publish_schedule_sends_email_notification(client):
+    admin = admin_headers(client)
+    ids = shift_ids(client, admin)
+    week = future_week(14)
+    emp = create_employee(client, admin, ho_ten="Nhân Viên Nhận Email", email="nhanvien.email@coffeeshop.test")
+
+    # Thêm ca và công bố
+    add(client, admin, emp["id"], ids["CA_SANG"], day(week, 2))
+    before_count = len(svc.SENT_EMAILS)
+
+    res = client.post("/api/shifts/schedule/publish", headers=admin, json={"tuan_bat_dau": week.isoformat()})
+    assert res.status_code == 200, res.text
+
+    # Kiểm tra email thông báo đã được gửi
+    assert len(svc.SENT_EMAILS) > before_count
+    sent = next(e for e in svc.SENT_EMAILS if e["to_email"] == "nhanvien.email@coffeeshop.test")
+    assert "đã được công bố" in sent["tieu_de"]
+
+
+def test_dedicated_conflicts_endpoint_and_precheck(client):
+    admin = admin_headers(client)
+    ids = shift_ids(client, admin)
+    week = future_week(15)
+    emp = create_employee(client, admin, ho_ten="Kiểm Tra Xung Đột")
+
+    # 1. Tiền kiểm tra xung đột trước khi xếp (POST /api/shifts/conflicts/check)
+    check1 = client.post("/api/shifts/conflicts/check", headers=admin, json={
+        "ma_nv": emp["id"],
+        "ma_ca": ids["CA_SANG"],
+        "ngay_lam": day(week, 0)
+    }).json()
+    assert check1["hop_le"] is True
+    assert check1["co_loi"] is False
+
+    # Thêm ca 1 (Ca Sáng: 06:00 - 14:00)
+    add(client, admin, emp["id"], ids["CA_SANG"], day(week, 0))
+
+    # Kiểm tra trùng giờ với Ca Part-time 1 (08:00 - 12:00)
+    check_overlap = client.post("/api/shifts/conflicts/check", headers=admin, json={
+        "ma_nv": emp["id"],
+        "ma_ca": ids["CA_PARTTIME_1"],
+        "ngay_lam": day(week, 0)
+    }).json()
+    assert check_overlap["hop_le"] is True
+    assert check_overlap["co_loi"] is True
+    assert any(c["loai"] == "trung_ca" for c in check_overlap["xung_dot"])
+
+    # Thêm ca chồng lấp để kiểm tra API báo cáo xung đột
+    add(client, admin, emp["id"], ids["CA_PARTTIME_1"], day(week, 0))
+
+    # 2. Gọi API báo cáo chi tiết xung đột (GET /api/shifts/conflicts)
+    conflicts_rep = client.get(f"/api/shifts/conflicts?week={week.isoformat()}", headers=admin).json()
+    assert conflicts_rep["co_the_cong_bo"] is False
+    assert conflicts_rep["tong_so_loi"] > 0
+    assert any(x["loai"] == "trung_ca" and x["muc_do"] == "loi" for x in conflicts_rep["xung_dot_phan_cong"])
+

@@ -19,8 +19,10 @@ from app.models.user import TaiKhoan
 from app.schemas.shift import (
     LoaiCaCreate, LoaiCaUpdate, LoaiCaResponse,
     DangKyItem, DangKyTuanRequest, DangKyTuanResponse,
-    PhanCongCreate, PhanCongResponse, NhanVienRutGon, OCa, TongGioNhanVien,
-    BangXepCaResponse, TuanRequest, CaCuaToi, LichCuaToiResponse, XungDot
+    DangKyThangRequest, DangKyThangResponse, DangKyChiTietResponse, TuanInfo,
+    PhanCongCreate, PhanCongUpdate, PhanCongResponse, NhanVienRutGon, OCa, TongGioNhanVien,
+    BangXepCaResponse, TuanRequest, CaCuaToi, LichCuaToiResponse, XungDot,
+    ChiTietXungDot, BaoCaoXungDotResponse, KiemTraXungDotResponse
 )
 from app.services import shift_service as svc
 
@@ -202,6 +204,218 @@ def save_my_registration(
     return build_registration_response(db, nv_id, start)
 
 
+@router.get("/registrations/month", response_model=DangKyThangResponse)
+def get_my_monthly_registration(
+    month: Optional[str] = Query(None, description="Tháng dạng YYYY-MM (mặc định: tháng hiện tại)"),
+    current_user: TaiKhoan = Depends(require_roles(["Staff"])),
+    db: Session = Depends(get_db)
+):
+    """
+    FR-07: Xem nguyện vọng ca đã đăng ký theo tháng
+    - Trả về danh sách ngày đã đăng ký trong tháng
+    - Cung cấp hạn chót và trạng thái mở/khóa cho từng tuần trong tháng
+    """
+    nv_id = require_employee_profile(current_user)
+    if not month:
+        month = date.today().strftime("%Y-%m")
+
+    try:
+        start_d, end_d = svc.month_date_range(month)
+    except Exception:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Định dạng tháng không hợp lệ (cần YYYY-MM)")
+
+    weeks = svc.month_weeks(month)
+    tuan_info = []
+    for w in weeks:
+        tuan_info.append(TuanInfo(
+            tuan_bat_dau=w,
+            tuan_ket_thuc=w + timedelta(days=6),
+            han_chot=svc.registration_deadline(w),
+            con_mo=svc.is_registration_open(w)
+        ))
+
+    items = db.query(DangKyCa).filter(
+        DangKyCa.ma_nv == nv_id,
+        DangKyCa.ngay_dang_ky >= start_d,
+        DangKyCa.ngay_dang_ky <= end_d
+    ).order_by(DangKyCa.ngay_dang_ky, DangKyCa.ma_ca).all()
+
+    return DangKyThangResponse(
+        thang=month,
+        loai_ca=[map_loai_ca(lc) for lc in svc.active_shift_types(db)],
+        tuan_trong_thang=tuan_info,
+        dang_ky=[DangKyItem(ngay=dk.ngay_dang_ky, ma_ca=dk.ma_ca) for dk in items],
+        tong_ca_dang_ky=len(items)
+    )
+
+
+@router.put("/registrations/month", response_model=DangKyThangResponse)
+def save_my_monthly_registration(
+    data: DangKyThangRequest,
+    current_user: TaiKhoan = Depends(require_roles(["Staff"])),
+    db: Session = Depends(get_db)
+):
+    """
+    FR-07: Đăng ký / cập nhật nguyện vọng ca cho cả tháng
+    - Nhân viên chọn các ca rảnh cho từng ngày trong tháng
+    - Hệ thống kiểm tra hạn chót từng tuần: các tuần đã khóa sẽ không cho phép chỉnh sửa
+    """
+    nv_id = require_employee_profile(current_user)
+    try:
+        start_d, end_d = svc.month_date_range(data.thang)
+    except Exception:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Định dạng tháng không hợp lệ (cần YYYY-MM)")
+
+    valid_types = {lc.id for lc in svc.active_shift_types(db)}
+    new_by_week = defaultdict(set)
+    for item in data.dang_ky:
+        if not (start_d <= item.ngay <= end_d):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Ngày {item.ngay.strftime('%d/%m/%Y')} không thuộc tháng {data.thang}"
+            )
+        if item.ma_ca not in valid_types:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Loại ca không tồn tại hoặc đã ngừng sử dụng")
+        w_start = svc.week_start(item.ngay)
+        new_by_week[w_start].add((item.ngay, item.ma_ca))
+
+    # Lấy các đăng ký hiện tại trong tháng của nhân viên
+    existing_items = db.query(DangKyCa).filter(
+        DangKyCa.ma_nv == nv_id,
+        DangKyCa.ngay_dang_ky >= start_d,
+        DangKyCa.ngay_dang_ky <= end_d
+    ).all()
+    existing_by_week = defaultdict(set)
+    for ex in existing_items:
+        w_start = svc.week_start(ex.ngay_dang_ky)
+        existing_by_week[w_start].add((ex.ngay_dang_ky, ex.ma_ca))
+
+    # Kiểm tra hạn chót các tuần
+    all_weeks = svc.month_weeks(data.thang)
+    for w in all_weeks:
+        w_existing = existing_by_week.get(w, set())
+        w_new = new_by_week.get(w, set())
+        if w_existing != w_new and not svc.is_registration_open(w):
+            han_chot = svc.registration_deadline(w)
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Tuần {svc.week_label(w)} đã quá hạn chót đăng ký ({han_chot.strftime('%H:%M %d/%m/%Y')}). Không thể chỉnh sửa nguyện vọng của tuần này."
+            )
+
+    # Cập nhật cho các tuần còn mở
+    for w in all_weeks:
+        if svc.is_registration_open(w):
+            w_end = w + timedelta(days=6)
+            db.query(DangKyCa).filter(
+                DangKyCa.ma_nv == nv_id,
+                DangKyCa.ngay_dang_ky >= max(start_d, w),
+                DangKyCa.ngay_dang_ky <= min(end_d, w_end)
+            ).delete(synchronize_session=False)
+
+            for ngay, ma_ca in sorted(new_by_week.get(w, set())):
+                db.add(DangKyCa(ma_nv=nv_id, ma_ca=ma_ca, ngay_dang_ky=ngay, trang_thai="nguyen_vong"))
+
+    db.commit()
+
+    # Trả về kết quả mới
+    return get_my_monthly_registration(month=data.thang, current_user=current_user, db=db)
+
+
+@router.delete("/registrations/me")
+def delete_my_registration(
+    week: Optional[date] = Query(None, description="Ngày Thứ Hai hoặc ngày trong tuần cần xóa nguyện vọng"),
+    month: Optional[str] = Query(None, description="Tháng dạng YYYY-MM cần xóa nguyện vọng"),
+    current_user: TaiKhoan = Depends(require_roles(["Staff"])),
+    db: Session = Depends(get_db)
+):
+    """FR-07: Hủy / xóa toàn bộ nguyện vọng ca của tuần hoặc tháng trước hạn chót"""
+    nv_id = require_employee_profile(current_user)
+    if month is not None:
+        try:
+            start_d, end_d = svc.month_date_range(month)
+        except Exception:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Định dạng tháng không hợp lệ (cần YYYY-MM)")
+        all_weeks = svc.month_weeks(month)
+        for w in all_weeks:
+            if not svc.is_registration_open(w):
+                w_end = w + timedelta(days=6)
+                has_reg = db.query(DangKyCa).filter(
+                    DangKyCa.ma_nv == nv_id,
+                    DangKyCa.ngay_dang_ky >= max(start_d, w),
+                    DangKyCa.ngay_dang_ky <= min(end_d, w_end)
+                ).first()
+                if has_reg:
+                    han_chot = svc.registration_deadline(w)
+                    raise HTTPException(
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                        detail=f"Tuần {svc.week_label(w)} đã quá hạn chót đăng ký ({han_chot.strftime('%H:%M %d/%m/%Y')}). Không thể xóa nguyện vọng tuần này."
+                    )
+        deleted = db.query(DangKyCa).filter(
+            DangKyCa.ma_nv == nv_id,
+            DangKyCa.ngay_dang_ky >= start_d,
+            DangKyCa.ngay_dang_ky <= end_d
+        ).delete(synchronize_session=False)
+        db.commit()
+        return {"message": f"Đã xóa {deleted} nguyện vọng ca trong tháng {month}", "so_luong": deleted}
+
+    start = resolve_week(week)
+    if not svc.is_registration_open(start):
+        han_chot = svc.registration_deadline(start)
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Đã quá hạn chót đăng ký ({han_chot.strftime('%H:%M %d/%m/%Y')}). Không thể xóa nguyện vọng tuần này."
+        )
+
+    end = start + timedelta(days=6)
+    deleted = db.query(DangKyCa).filter(
+        DangKyCa.ma_nv == nv_id,
+        DangKyCa.ngay_dang_ky >= start,
+        DangKyCa.ngay_dang_ky <= end
+    ).delete(synchronize_session=False)
+    db.commit()
+    return {"message": f"Đã xóa {deleted} nguyện vọng ca trong tuần {svc.week_label(start)}", "so_luong": deleted}
+
+
+
+@router.get("/registrations", response_model=List[DangKyChiTietResponse])
+def list_registrations(
+    week: Optional[date] = Query(None, description="Lọc theo tuần"),
+    month: Optional[str] = Query(None, description="Lọc theo tháng (YYYY-MM)"),
+    ma_nv: Optional[int] = Query(None, description="Lọc theo nhân viên"),
+    current_user: TaiKhoan = Depends(require_roles(ADMIN_ROLES)),
+    db: Session = Depends(get_db)
+):
+    """FR-07: Quản lý xem danh sách nguyện vọng ca đã đăng ký của nhân viên theo tuần hoặc tháng"""
+    q = db.query(DangKyCa).join(DangKyCa.nhan_vien).join(DangKyCa.loai_ca)
+    if week is not None:
+        start = svc.week_start(week)
+        end = start + timedelta(days=6)
+        q = q.filter(DangKyCa.ngay_dang_ky >= start, DangKyCa.ngay_dang_ky <= end)
+    elif month is not None:
+        start_d, end_d = svc.month_date_range(month)
+        q = q.filter(DangKyCa.ngay_dang_ky >= start_d, DangKyCa.ngay_dang_ky <= end_d)
+
+    if ma_nv is not None:
+        q = q.filter(DangKyCa.ma_nv == ma_nv)
+
+    items = q.order_by(DangKyCa.ngay_dang_ky, DangKyCa.ma_ca).all()
+    results = []
+    for dk in items:
+        results.append(DangKyChiTietResponse(
+            id=dk.id,
+            ma_nv=dk.ma_nv,
+            ho_ten=dk.nhan_vien.ho_ten if dk.nhan_vien else None,
+            ma_nhan_vien=dk.nhan_vien.ma_nhan_vien if dk.nhan_vien else None,
+            ma_ca=dk.ma_ca,
+            ten_ca=dk.loai_ca.ten_ca if dk.loai_ca else None,
+            ma_loai_ca=dk.loai_ca.ma_loai_ca if dk.loai_ca else None,
+            ngay_dang_ky=dk.ngay_dang_ky,
+            ngay_tao=dk.ngay_tao
+        ))
+    return results
+
+
+
 # ---------- Bảng xếp ca (FR-08, FR-09) ----------
 
 def build_schedule(db: Session, start: date) -> BangXepCaResponse:
@@ -343,6 +557,55 @@ def add_assignment(
     return build_schedule(db, start)
 
 
+@router.put("/assignments/{assignment_id}", response_model=BangXepCaResponse)
+def update_assignment(
+    assignment_id: int,
+    data: PhanCongUpdate,
+    current_user: TaiKhoan = Depends(require_roles(ADMIN_ROLES)),
+    db: Session = Depends(get_db)
+):
+    """FR-08: Quản lý điều chỉnh thủ công một phân công ca (đổi nhân viên, ca hoặc ngày làm)"""
+    pc = db.query(PhanCongCa).filter(PhanCongCa.id == assignment_id).first()
+    if not pc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Không tìm thấy phân công ca")
+
+    start_old = svc.week_start(pc.ngay_lam)
+    ensure_week_editable(db, start_old)
+
+    new_nv_id = data.ma_nv if data.ma_nv is not None else pc.ma_nv
+    new_ca_id = data.ma_ca if data.ma_ca is not None else pc.ma_ca
+    new_ngay = data.ngay_lam if data.ngay_lam is not None else pc.ngay_lam
+    start_new = svc.week_start(new_ngay)
+    ensure_week_editable(db, start_new)
+
+    lc = db.query(LoaiCa).filter(LoaiCa.id == new_ca_id, LoaiCa.trang_thai == True).first()
+    if not lc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Loại ca không tồn tại hoặc đã ngừng sử dụng")
+
+    nv = db.query(NhanVien).filter(NhanVien.id == new_nv_id).first()
+    reason = svc.employee_block_reason(nv)
+    if nv is None or nv.is_deleted or nv.trang_thai == "da_nghi":
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Không thể xếp ca: {reason}")
+
+    dup = db.query(PhanCongCa).filter(
+        PhanCongCa.ma_nv == new_nv_id,
+        PhanCongCa.ma_ca == new_ca_id,
+        PhanCongCa.ngay_lam == new_ngay,
+        PhanCongCa.id != assignment_id
+    ).first()
+    if dup:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"{nv.ho_ten} đã có trong ca này")
+
+    week_new = svc.get_or_create_week(db, start_new)
+    pc.ma_nv = new_nv_id
+    pc.ma_ca = new_ca_id
+    pc.ngay_lam = new_ngay
+    pc.ma_lich_tuan = week_new.id
+    pc.theo_nguyen_vong = svc.is_preferred(db, new_nv_id, new_ca_id, new_ngay)
+    db.commit()
+    return build_schedule(db, start_new)
+
+
 @router.delete("/assignments/{assignment_id}", response_model=BangXepCaResponse)
 def remove_assignment(
     assignment_id: int,
@@ -360,6 +623,21 @@ def remove_assignment(
     return build_schedule(db, start)
 
 
+@router.delete("/schedule/clear", response_model=BangXepCaResponse)
+def clear_schedule(
+    week: Optional[date] = Query(None, description="Một ngày bất kỳ trong tuần cần xóa bản nháp"),
+    current_user: TaiKhoan = Depends(require_roles(ADMIN_ROLES)),
+    db: Session = Depends(get_db)
+):
+    """FR-08: Xóa toàn bộ phân công nháp trong tuần để xếp lại từ đầu"""
+    start = resolve_week(week)
+    ensure_week_editable(db, start)
+    for pc in list(svc.week_assignments(db, start)):
+        db.delete(pc)
+    db.commit()
+    return build_schedule(db, start)
+
+
 @router.post("/schedule/publish", response_model=BangXepCaResponse)
 def publish_schedule(
     data: TuanRequest,
@@ -369,7 +647,7 @@ def publish_schedule(
     """
     FR-08 / BR-02: Công bố lịch ca chính thức
     - Không cho công bố khi còn lỗi (trùng giờ, nhân viên nghỉ phép/nghỉ việc)
-    - Gửi thông báo trong ứng dụng cho từng nhân viên có ca
+    - Gửi thông báo trong ứng dụng (in-app) và email cho từng nhân viên có ca
     """
     start = svc.week_start(data.tuan_bat_dau)
     ensure_week_editable(db, start)
@@ -396,14 +674,111 @@ def publish_schedule(
 
     for ma_nv, items in per_employee.items():
         lines = [f"{svc.format_day(pc.ngay_lam)}: {svc.shift_label(type_map[pc.ma_ca])}" for pc in items]
+        tieu_de = f"Lịch ca tuần {svc.week_label(start)} đã được công bố: bạn có {len(items)} ca"
+        noi_dung = "\n".join(lines)
+        lien_ket = f"/my-schedule?week={start.isoformat()}"
+
+        # Thông báo in-app
         svc.notify(
             db, ma_nv,
-            tieu_de=f"Lịch ca tuần {svc.week_label(start)} đã được công bố: bạn có {len(items)} ca",
-            noi_dung="\n".join(lines),
-            lien_ket=f"/my-schedule?week={start.isoformat()}"
+            tieu_de=tieu_de,
+            noi_dung=noi_dung,
+            lien_ket=lien_ket
         )
+
+        # FR-08: Gửi email thông báo nếu nhân viên có email
+        nv = db.query(NhanVien).filter(NhanVien.id == ma_nv).first()
+        if nv and nv.email:
+            svc.send_email_notification(
+                to_email=nv.email,
+                tieu_de=tieu_de,
+                noi_dung=noi_dung
+            )
+
     db.commit()
     return build_schedule(db, start)
+
+
+# ---------- Kiểm tra & Báo cáo xung đột ca (FR-09) ----------
+
+@router.get("/conflicts", response_model=BaoCaoXungDotResponse)
+def get_schedule_conflicts(
+    week: Optional[date] = Query(None, description="Một ngày bất kỳ trong tuần cần kiểm tra xung đột"),
+    current_user: TaiKhoan = Depends(require_roles(ADMIN_ROLES)),
+    db: Session = Depends(get_db)
+):
+    """
+    FR-09: Báo cáo chi tiết các xung đột và cảnh báo trong tuần:
+    - Trùng ca/chồng lấp thời gian
+    - Nhân viên nghỉ phép hoặc đã nghỉ việc
+    - Vượt số giờ quy định (> 8h/ngày hoặc > 48h/tuần)
+    - Thiếu nhân sự (understaffed) hoặc thừa nhân sự
+    """
+    start = resolve_week(week)
+    end = start + timedelta(days=6)
+    schedule = build_schedule(db, start)
+    type_map = {lc.id: lc for lc in db.query(LoaiCa).all()}
+
+    xung_dot_phan_cong = []
+    for pc in schedule.phan_cong:
+        lc = type_map.get(pc.ma_ca)
+        for xd in pc.xung_dot:
+            xung_dot_phan_cong.append(ChiTietXungDot(
+                ma_phan_cong=pc.id,
+                ma_nv=pc.ma_nv,
+                ho_ten=pc.ho_ten,
+                ngay_lam=pc.ngay_lam,
+                ma_ca=pc.ma_ca,
+                ten_ca=lc.ten_ca if lc else None,
+                loai=xd.loai,
+                muc_do=xd.muc_do,
+                thong_bao=xd.thong_bao
+            ))
+
+    canh_bao_o_ca = []
+    for o in schedule.o_ca:
+        lc = type_map.get(o.ma_ca)
+        for cb in o.canh_bao:
+            canh_bao_o_ca.append(ChiTietXungDot(
+                ngay_lam=o.ngay,
+                ma_ca=o.ma_ca,
+                ten_ca=lc.ten_ca if lc else None,
+                loai=cb.loai,
+                muc_do=cb.muc_do,
+                thong_bao=cb.thong_bao
+            ))
+
+    return BaoCaoXungDotResponse(
+        tuan_bat_dau=start,
+        tuan_ket_thuc=end,
+        co_the_cong_bo=schedule.co_the_cong_bo,
+        tong_so_loi=schedule.so_loi,
+        tong_so_canh_bao=schedule.so_canh_bao,
+        xung_dot_phan_cong=xung_dot_phan_cong,
+        canh_bao_o_ca=canh_bao_o_ca
+    )
+
+
+@router.post("/conflicts/check", response_model=KiemTraXungDotResponse)
+def check_shift_conflict(
+    data: PhanCongCreate,
+    current_user: TaiKhoan = Depends(require_roles(ADMIN_ROLES)),
+    db: Session = Depends(get_db)
+):
+    """
+    FR-09: Kiểm tra trước xung đột ca khi dự định xếp một nhân viên vào ô ca (không lưu DB):
+    - Trùng giờ / chồng lấp
+    - Trạng thái nhân viên (nghỉ phép, nghỉ việc)
+    - Vượt quá 8h/ngày hoặc 48h/tuần
+    """
+    hop_le, co_loi, msg, list_xd = svc.check_assignment_conflicts(db, data.ma_nv, data.ma_ca, data.ngay_lam)
+    return KiemTraXungDotResponse(
+        hop_le=hop_le,
+        co_loi=co_loi,
+        thong_bao_chinh=msg,
+        xung_dot=[XungDot(**xd) for xd in list_xd]
+    )
+
 
 
 @router.post("/schedule/unpublish", response_model=BangXepCaResponse)

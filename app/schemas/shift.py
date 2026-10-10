@@ -173,3 +173,77 @@ class ThongBaoResponse(BaseModel):
 class DanhSachThongBao(BaseModel):
     so_chua_doc: int
     items: List[ThongBaoResponse]
+
+
+# ---------- Mở rộng FR-07: Đăng ký nguyện vọng theo tháng ----------
+
+class TuanInfo(BaseModel):
+    tuan_bat_dau: date
+    tuan_ket_thuc: date
+    han_chot: datetime
+    con_mo: bool
+
+
+class DangKyThangRequest(BaseModel):
+    thang: str = Field(..., pattern=r"^\d{4}-\d{2}$", description="Định dạng YYYY-MM")
+    dang_ky: List[DangKyItem] = []
+
+
+class DangKyThangResponse(BaseModel):
+    thang: str
+    loai_ca: List[LoaiCaResponse]
+    tuan_trong_thang: List[TuanInfo]
+    dang_ky: List[DangKyItem]
+    tong_ca_dang_ky: int
+
+
+class DangKyChiTietResponse(BaseModel):
+    id: int
+    ma_nv: int
+    ho_ten: Optional[str] = None
+    ma_nhan_vien: Optional[str] = None
+    ma_ca: int
+    ten_ca: Optional[str] = None
+    ma_loai_ca: Optional[str] = None
+    ngay_dang_ky: date
+    ngay_tao: Optional[datetime] = None
+
+
+# ---------- Mở rộng FR-08: Điều chỉnh phân công ca thủ công ----------
+
+class PhanCongUpdate(BaseModel):
+    ma_nv: Optional[int] = None
+    ma_ca: Optional[int] = None
+    ngay_lam: Optional[date] = None
+
+
+# ---------- Mở rộng FR-09: Chi tiết xung đột & Tiền kiểm tra xung đột ----------
+
+class ChiTietXungDot(BaseModel):
+    ma_phan_cong: Optional[int] = None
+    ma_nv: Optional[int] = None
+    ho_ten: Optional[str] = None
+    ngay_lam: Optional[date] = None
+    ma_ca: Optional[int] = None
+    ten_ca: Optional[str] = None
+    loai: str  # 'trung_ca', 'trang_thai', 'qua_gio_ngay', 'qua_gio_tuan', 'thieu_nguoi', 'du_nguoi'
+    muc_do: str  # 'loi' (màu đỏ, chặn công bố) | 'canh_bao' (màu vàng/icon)
+    thong_bao: str
+
+
+class BaoCaoXungDotResponse(BaseModel):
+    tuan_bat_dau: date
+    tuan_ket_thuc: date
+    co_the_cong_bo: bool
+    tong_so_loi: int
+    tong_so_canh_bao: int
+    xung_dot_phan_cong: List[ChiTietXungDot]
+    canh_bao_o_ca: List[ChiTietXungDot]
+
+
+class KiemTraXungDotResponse(BaseModel):
+    hop_le: bool
+    co_loi: bool
+    thong_bao_chinh: Optional[str] = None
+    xung_dot: List[XungDot] = []
+
