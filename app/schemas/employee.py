@@ -39,11 +39,11 @@ class NhanVienValidationMixin(BaseModel):
                 raise ValueError("Năm sinh không hợp lệ")
         return v
 
-class NhanVienBase(NhanVienValidationMixin):
+class NhanVienBase(BaseModel):
     ma_nhan_vien: Optional[str] = None
     ma_cua_hang: Optional[int] = None
     ma_vi_tri: Optional[int] = None
-    ho_ten: str = Field(..., min_length=2, max_length=100)
+    ho_ten: str = Field(..., max_length=100)
     so_dien_thoai: Optional[str] = None
     email: Optional[str] = None
     dia_chi: Optional[str] = None
@@ -56,7 +56,8 @@ class NhanVienBase(NhanVienValidationMixin):
     anh_dai_dien: Optional[str] = None
     trang_thai: Optional[str] = "dang_lam"  # 'dang_lam', 'nghi_phep', 'da_nghi'
 
-class NhanVienCreate(NhanVienBase):
+class NhanVienCreate(NhanVienBase, NhanVienValidationMixin):
+    ho_ten: str = Field(..., min_length=2, max_length=100)
     tao_tai_khoan: Optional[bool] = False
     ten_dang_nhap: Optional[str] = None
     mat_khau: Optional[str] = None

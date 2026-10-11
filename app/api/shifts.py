@@ -496,6 +496,16 @@ def build_schedule(db: Session, start: date) -> BangXepCaResponse:
     )
 
 
+@router.get("/schedulable-employees", response_model=List[NhanVienRutGon])
+def list_schedulable_employees_for_shift(
+    current_user: TaiKhoan = Depends(require_roles(ADMIN_ROLES)),
+    db: Session = Depends(get_db)
+):
+    """FR-08: Danh sách nhân viên đủ điều kiện để xếp ca (đang làm việc, không bị xóa)"""
+    emps = svc.schedulable_employees(db)
+    return [NhanVienRutGon(id=e.id, ma_nv=e.id, ho_ten=e.ho_ten, ma_nhan_vien=e.ma_nhan_vien) for e in emps]
+
+
 @router.get("/schedule", response_model=BangXepCaResponse)
 def get_schedule(
     week: Optional[date] = Query(None, description="Một ngày bất kỳ trong tuần (mặc định: tuần kế tiếp)"),
@@ -504,6 +514,7 @@ def get_schedule(
 ):
     """FR-08/FR-09: Bảng ca dạng lưới của một tuần, kèm nguyện vọng, cảnh báo thiếu ca và xung đột"""
     return build_schedule(db, resolve_week(week))
+
 
 
 @router.post("/schedule/auto", response_model=BangXepCaResponse)
