@@ -94,6 +94,7 @@ class PhanCongResponse(BaseModel):
 
 
 class NhanVienRutGon(BaseModel):
+    id: Optional[int] = None
     ma_nv: int
     ho_ten: str
     ma_nhan_vien: Optional[str] = None

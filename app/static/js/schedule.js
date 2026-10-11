@@ -5,6 +5,35 @@ let schedulable = [];
 let shiftTypes = [];
 let assignSlot = null;
 
+async function loadSchedulableEmployees() {
+    try {
+        const data = await API.request("/api/employees/schedulable");
+        schedulable = data.map(e => ({
+            id: e.id || e.ma_nv,
+            ma_nv: e.id || e.ma_nv,
+            ma_nhan_vien: e.ma_nhan_vien,
+            ho_ten: e.ho_ten
+        }));
+        return true;
+    } catch (err) {
+        // Fallback sang endpoint xếp ca
+        try {
+            const data = await API.request("/api/shifts/schedulable-employees");
+            schedulable = data.map(e => ({
+                id: e.id || e.ma_nv,
+                ma_nv: e.id || e.ma_nv,
+                ma_nhan_vien: e.ma_nhan_vien,
+                ho_ten: e.ho_ten
+            }));
+            return true;
+        } catch (e2) {
+            console.error("Không tải được danh sách nhân viên:", err, e2);
+            showToast("Không tải được danh sách nhân viên: " + err.message, "error");
+            return false;
+        }
+    }
+}
+
 document.addEventListener("DOMContentLoaded", async () => {
     if (!API.getUser() || !API.isAdmin()) return;
     schWeek = getWeekFromUrl(1);
@@ -15,11 +44,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     document.getElementById("btn-unpublish").addEventListener("click", unpublishWeek);
     document.getElementById("btn-add-type").addEventListener("click", addTypeRow);
     document.getElementById("assign-form").addEventListener("submit", submitAssign);
-    try {
-        schedulable = await API.request("/api/employees/schedulable");
-    } catch (err) {
-        showToast("Không tải được danh sách nhân viên: " + err.message, "error");
-    }
+    await loadSchedulableEmployees();
     await Promise.all([loadSchedule(), loadShiftTypes()]);
 });
 
@@ -213,7 +238,10 @@ async function removeAssignment(id) {
     }
 }
 
-function openAssignModal(ngay, maCa) {
+async function openAssignModal(ngay, maCa) {
+    if (!schedulable.length) {
+        await loadSchedulableEmployees();
+    }
     assignSlot = { ngay, maCa };
     const lc = schedule.loai_ca.find(t => t.id === maCa);
     const slot = schedule.o_ca.find(o => o.ngay === ngay && o.ma_ca === maCa);

@@ -17,12 +17,30 @@ from app.services.file_service import save_upload, IMAGE_EXTENSIONS
 router = APIRouter(prefix="/api/employees", tags=["Quản lý Hồ sơ Nhân sự (HR)"])
 
 def map_nhan_vien_response(nv: NhanVien) -> NhanVienResponse:
+    ten_cua_hang = None
+    try:
+        ten_cua_hang = nv.cua_hang.ten_cua_hang if nv.cua_hang else None
+    except Exception:
+        pass
+
+    ten_vi_tri = None
+    try:
+        ten_vi_tri = nv.vi_tri.ten_vi_tri if nv.vi_tri else None
+    except Exception:
+        pass
+
+    ten_dang_nhap = None
+    try:
+        ten_dang_nhap = nv.tai_khoan.ten_dang_nhap if nv.tai_khoan else None
+    except Exception:
+        pass
+
     return NhanVienResponse(
         id=nv.id,
         ma_nhan_vien=nv.ma_nhan_vien,
         ma_cua_hang=nv.ma_cua_hang,
         ma_vi_tri=nv.ma_vi_tri,
-        ho_ten=nv.ho_ten,
+        ho_ten=nv.ho_ten or "",
         so_dien_thoai=nv.so_dien_thoai,
         email=nv.email,
         dia_chi=nv.dia_chi,
@@ -30,15 +48,15 @@ def map_nhan_vien_response(nv: NhanVien) -> NhanVienResponse:
         ngay_sinh=nv.ngay_sinh,
         gioi_tinh=nv.gioi_tinh,
         tinh_trang_hon_nhan=nv.tinh_trang_hon_nhan,
-        so_nhan_khau=nv.so_nhan_khau,
+        so_nhan_khau=nv.so_nhan_khau or 0,
         ngay_vao_lam=nv.ngay_vao_lam,
         anh_dai_dien=nv.anh_dai_dien,
-        trang_thai=nv.trang_thai,
-        is_deleted=nv.is_deleted,
+        trang_thai=nv.trang_thai or "dang_lam",
+        is_deleted=bool(nv.is_deleted),
         ngay_tao=nv.ngay_tao,
-        ten_cua_hang=nv.cua_hang.ten_cua_hang if nv.cua_hang else None,
-        ten_vi_tri=nv.vi_tri.ten_vi_tri if nv.vi_tri else None,
-        ten_dang_nhap=nv.tai_khoan.ten_dang_nhap if nv.tai_khoan else None
+        ten_cua_hang=ten_cua_hang,
+        ten_vi_tri=ten_vi_tri,
+        ten_dang_nhap=ten_dang_nhap
     )
 
 def sync_account_active(nv: NhanVien):

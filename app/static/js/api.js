@@ -76,9 +76,15 @@ const API = {
             throw new Error("Phiên đăng nhập đã hết hạn");
         }
 
-        const data = await res.json().catch(() => ({}));
+        let data = {};
+        const text = await res.text();
+        try {
+            data = JSON.parse(text);
+        } catch (e) {
+            data = { detail: text || res.statusText };
+        }
         if (!res.ok) {
-            let msg = data.detail || "Đã xảy ra lỗi, vui lòng thử lại";
+            let msg = data.detail || data.message || `Lỗi ${res.status}: ${res.statusText || "Đã xảy ra lỗi"}`;
             if (Array.isArray(msg)) {
                 msg = msg.map(d => (d.msg || "").replace(/^Value error,\s*/i, "")).join("; ");
             }
