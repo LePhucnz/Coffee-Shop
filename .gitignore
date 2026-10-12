@@ -1,3 +1,6 @@
 __pycache__/
 *.pyc
 *.db
+
+# Sprint 5: minh chứng yêu cầu bù/sửa công do người dùng tải lên
+app/static/uploads/attendance/

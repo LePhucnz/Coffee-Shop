@@ -1,0 +1,91 @@
+{% extends "_layout.html" %}
+
+{% block content %}
+<!-- Màn 13: Cài đặt chấm công (FR-11D mục 2) -->
+<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-[#f0e9df]">
+    <div>
+        <h1 class="text-3xl font-extrabold text-[#18181b] tracking-tight">Cài đặt chấm công</h1>
+        <p class="text-sm text-[#71717a] mt-1 font-medium">Thay đổi chỉ áp dụng cho ca bắt đầu sau thời điểm lưu, không tính lại ca cũ</p>
+    </div>
+    <a href="/attendance-manage" class="btn-outline-brand self-start">Quay lại</a>
+</div>
+
+<div id="readonly-note" class="hidden mt-6 rounded-xl bg-amber-50 border border-amber-200 px-4 py-3 text-sm text-amber-800">
+    Chỉ Chủ quán (Admin) được thay đổi cài đặt. Bạn đang xem ở chế độ chỉ đọc.
+</div>
+
+<form id="settings-form" class="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
+    <div class="dash-card p-5 space-y-3">
+        <h2 class="font-bold">Giờ chấm công</h2>
+        <label class="block text-xs font-bold text-[#52525b]">Mở check-in trước giờ vào ca (phút)
+            <input type="number" min="0" max="120" name="mo_truoc_phut" class="form-input mt-1">
+        </label>
+        <label class="block text-xs font-bold text-[#52525b]">Ân hạn đi trễ (phút)
+            <input type="number" min="0" max="60" name="an_han_phut" class="form-input mt-1">
+        </label>
+        <label class="block text-xs font-bold text-[#52525b]">Chống bấm trùng (giây)
+            <input type="number" min="0" max="600" name="chong_bam_trung_giay" class="form-input mt-1">
+        </label>
+        <label class="block text-xs font-bold text-[#52525b]">Đánh dấu "Chưa check-out" sau khi hết ca (phút)
+            <input type="number" min="0" max="1440" name="nguong_chua_checkout_phut" class="form-input mt-1">
+        </label>
+    </div>
+
+    <div class="dash-card p-5 space-y-3">
+        <h2 class="font-bold">Vị trí cửa hàng</h2>
+        <div id="store-name" class="text-sm font-semibold"></div>
+        <div class="grid grid-cols-2 gap-3">
+            <label class="text-xs font-bold text-[#52525b]">Vĩ độ
+                <input type="number" step="0.000001" name="vi_do_quan" class="form-input mt-1">
+            </label>
+            <label class="text-xs font-bold text-[#52525b]">Kinh độ
+                <input type="number" step="0.000001" name="kinh_do_quan" class="form-input mt-1">
+            </label>
+        </div>
+        <label class="block text-xs font-bold text-[#52525b]">Bán kính hợp lệ (mét)
+            <input type="number" min="20" max="5000" name="ban_kinh_m" class="form-input mt-1">
+        </label>
+        <label class="block text-xs font-bold text-[#52525b]">Dải IP mạng quán (phân cách bằng dấu phẩy)
+            <input type="text" name="dai_ip_quan" class="form-input mt-1" placeholder="192.168.1., 10.0.0.">
+        </label>
+        <p class="text-[11px] text-[#71717a]">Không lấy được GPS nhưng IP thuộc mạng quán thì không gắn cờ Thiếu GPS.</p>
+        <button type="button" id="btn-here" class="btn-outline-brand">Lấy vị trí hiện tại của tôi</button>
+    </div>
+
+    <div class="dash-card p-5 space-y-3">
+        <h2 class="font-bold">Yêu cầu bù/sửa công</h2>
+        <label class="block text-xs font-bold text-[#52525b]">Hạn gửi sau khi hết ca (giờ)
+            <input type="number" min="1" max="720" name="han_gui_yeu_cau_gio" class="form-input mt-1">
+        </label>
+        <label class="block text-xs font-bold text-[#52525b]">Hạn Quản lý xử lý (ngày)
+            <input type="number" min="1" max="30" name="han_xu_ly_ngay" class="form-input mt-1">
+        </label>
+        <label class="block text-xs font-bold text-[#52525b]">Hạn mức yêu cầu mỗi tháng / nhân viên
+            <input type="number" min="0" max="100" name="han_muc_thang" class="form-input mt-1">
+        </label>
+        <label class="block text-xs font-bold text-[#52525b]">Độ lệch tối đa so với giờ ca, quá thì cần lý do chi tiết (giờ)
+            <input type="number" min="0" max="24" name="do_lech_toi_da_gio" class="form-input mt-1">
+        </label>
+    </div>
+
+    <div class="dash-card p-5 space-y-3">
+        <h2 class="font-bold">Minh chứng</h2>
+        <label class="block text-xs font-bold text-[#52525b]">Số tệp tối đa mỗi yêu cầu
+            <input type="number" min="0" max="10" name="so_tep_toi_da" class="form-input mt-1">
+        </label>
+        <label class="block text-xs font-bold text-[#52525b]">Dung lượng tối đa mỗi tệp (MB)
+            <input type="number" min="1" max="20" name="dung_luong_tep_mb" class="form-input mt-1">
+        </label>
+        <p id="updated" class="text-[11px] text-[#71717a]"></p>
+    </div>
+
+    <div class="lg:col-span-2 flex justify-end">
+        <button type="submit" id="btn-save" class="btn-primary px-6">Lưu cài đặt</button>
+    </div>
+</form>
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/js/attendance-common.js"></script>
+<script src="/static/js/attendance-settings.js"></script>
+{% endblock %}

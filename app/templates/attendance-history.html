@@ -1,0 +1,154 @@
+{% extends "_layout.html" %}
+
+{% block content %}
+<!-- FR-11 (nhân viên): lịch sử công, yêu cầu bù/sửa công của tôi (FR-11A) -->
+<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-[#f0e9df]">
+    <div>
+        <h1 class="text-3xl font-extrabold text-[#18181b] tracking-tight">Lịch sử công của tôi</h1>
+        <p class="text-sm text-[#71717a] mt-1 font-medium">Xem kết quả chấm công, gửi yêu cầu bù/sửa công trong 48 giờ sau khi hết ca</p>
+    </div>
+    <div class="flex flex-wrap gap-2 self-start">
+        <a href="/attendance" class="btn-outline-brand">Về trang Chấm công</a>
+        <a href="/attendance-help" class="btn-outline-brand">Hướng dẫn</a>
+    </div>
+</div>
+
+<div id="no-profile" class="hidden dash-card p-6 mt-6 text-sm text-[#52525b]">
+    Tài khoản của bạn chưa liên kết với hồ sơ nhân viên nên chưa có dữ liệu chấm công.
+</div>
+
+<div id="history-body-wrap">
+    <div class="flex gap-6 mt-6 border-b border-[#f0e9df] text-sm font-bold">
+        <button type="button" data-tab="history" class="tab-btn pb-2 border-b-2 border-[#cf6800] text-[#cf6800]">Lịch sử công</button>
+        <button type="button" data-tab="requests" class="tab-btn pb-2 border-b-2 border-transparent text-[#71717a]">Yêu cầu của tôi <span id="open-count" class="hidden ml-1 px-1.5 rounded-full bg-amber-100 text-amber-700 text-[11px]"></span></button>
+    </div>
+
+    <!-- Tab lịch sử -->
+    <section id="tab-history" class="mt-6 space-y-6">
+        <div class="dash-card p-4 flex flex-wrap items-end gap-3">
+            <label class="text-xs font-bold text-[#52525b]">Từ ngày
+                <input type="date" id="f-from" class="form-input mt-1 !py-2">
+            </label>
+            <label class="text-xs font-bold text-[#52525b]">Đến ngày
+                <input type="date" id="f-to" class="form-input mt-1 !py-2">
+            </label>
+            <label class="text-xs font-bold text-[#52525b]">Trạng thái
+                <select id="f-status" class="form-input mt-1 !py-2">
+                    <option value="">Tất cả</option>
+                    <option value="dung_gio">Đúng giờ</option>
+                    <option value="di_tre">Đi trễ</option>
+                    <option value="ve_som">Về sớm</option>
+                    <option value="vang_mat">Vắng</option>
+                    <option value="chua_check_out">Chưa check-out</option>
+                    <option value="da_dieu_chinh">Đã điều chỉnh</option>
+                </select>
+            </label>
+            <button type="button" id="btn-filter" class="btn-primary px-5">Xem</button>
+            <p class="text-xs text-[#71717a] basis-full">Mặc định từ đầu tháng tới hôm nay, xem tối đa 12 tháng gần nhất.</p>
+        </div>
+
+        <div class="grid grid-cols-2 lg:grid-cols-5 gap-3">
+            <div class="dash-card p-4"><div class="text-[11px] font-bold uppercase text-[#71717a]">Ca đã làm</div><div id="s-done" class="text-xl font-extrabold mt-1">-</div></div>
+            <div class="dash-card p-4"><div class="text-[11px] font-bold uppercase text-[#71717a]">Giờ được tính</div><div id="s-hours" class="text-xl font-extrabold mt-1">-</div></div>
+            <div class="dash-card p-4"><div class="text-[11px] font-bold uppercase text-amber-700">Đi trễ / Về sớm</div><div id="s-late" class="text-xl font-extrabold text-amber-700 mt-1">-</div></div>
+            <div class="dash-card p-4"><div class="text-[11px] font-bold uppercase text-[#dc2626]">Vắng</div><div id="s-absent" class="text-xl font-extrabold text-[#dc2626] mt-1">-</div></div>
+            <div class="dash-card p-4"><div class="text-[11px] font-bold uppercase text-orange-700">Chưa check-out</div><div id="s-missing" class="text-xl font-extrabold text-orange-700 mt-1">-</div></div>
+        </div>
+
+        <div class="dash-card p-5 overflow-x-auto">
+            <table class="w-full text-sm">
+                <thead>
+                    <tr class="bg-[#eee7db]/80 text-xs font-bold text-[#52525b] text-left">
+                        <th class="py-2 px-2 rounded-l-lg">Ngày</th>
+                        <th class="py-2 px-2">Ca được phân</th>
+                        <th class="py-2 px-2">Vào / Ra</th>
+                        <th class="py-2 px-2">Giờ tính</th>
+                        <th class="py-2 px-2">Trạng thái</th>
+                        <th class="py-2 px-2 rounded-r-lg">Thao tác</th>
+                    </tr>
+                </thead>
+                <tbody id="history-rows" class="divide-y divide-[#f5efe6]">
+                    <tr><td colspan="6" class="py-6 text-center text-[#71717a]">Đang tải...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </section>
+
+    <!-- Tab yêu cầu -->
+    <section id="tab-requests" class="hidden mt-6">
+        <div class="dash-card p-5 overflow-x-auto">
+            <table class="w-full text-sm">
+                <thead>
+                    <tr class="bg-[#eee7db]/80 text-xs font-bold text-[#52525b] text-left">
+                        <th class="py-2 px-2 rounded-l-lg">Ngày gửi</th>
+                        <th class="py-2 px-2">Ca</th>
+                        <th class="py-2 px-2">Loại</th>
+                        <th class="py-2 px-2">Đề xuất</th>
+                        <th class="py-2 px-2">Trạng thái</th>
+                        <th class="py-2 px-2 rounded-r-lg">Thao tác</th>
+                    </tr>
+                </thead>
+                <tbody id="request-rows" class="divide-y divide-[#f5efe6]">
+                    <tr><td colspan="6" class="py-6 text-center text-[#71717a]">Đang tải...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </section>
+</div>
+
+<!-- Chi tiết một ca -->
+<div id="detail-modal" class="hidden fixed inset-0 z-50 bg-black/50 flex items-start justify-center p-4 overflow-y-auto">
+    <div class="bg-white rounded-2xl shadow-xl w-full max-w-2xl p-6 my-8">
+        <div class="flex items-center justify-between">
+            <h3 id="detail-title" class="text-lg font-extrabold">Chi tiết ca</h3>
+            <button type="button" onclick="closeModal('detail-modal')" class="text-[#71717a] text-xl leading-none">&times;</button>
+        </div>
+        <div id="detail-content" class="mt-4 text-sm space-y-4"></div>
+    </div>
+</div>
+
+<!-- Gửi / cập nhật yêu cầu bù-sửa công -->
+<div id="request-modal" class="hidden fixed inset-0 z-50 bg-black/50 flex items-start justify-center p-4 overflow-y-auto">
+    <form id="request-form" class="bg-white rounded-2xl shadow-xl w-full max-w-lg p-6 my-8 space-y-4">
+        <div class="flex items-center justify-between">
+            <h3 id="request-title" class="text-lg font-extrabold">Gửi yêu cầu bù/sửa công</h3>
+            <button type="button" onclick="closeModal('request-modal')" class="text-[#71717a] text-xl leading-none">&times;</button>
+        </div>
+        <div id="request-shift" class="rounded-xl bg-[#faf6f0] p-3 text-sm"></div>
+        <div id="request-question" class="hidden rounded-xl bg-sky-50 border border-sky-200 p-3 text-sm text-sky-800"></div>
+        <label class="block text-xs font-bold text-[#52525b]">Loại yêu cầu *
+            <select id="r-type" class="form-input mt-1"></select>
+        </label>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <label id="r-in-wrap" class="block text-xs font-bold text-[#52525b]">Giờ vào đề xuất
+                <input type="datetime-local" id="r-in" class="form-input mt-1">
+            </label>
+            <label id="r-out-wrap" class="block text-xs font-bold text-[#52525b]">Giờ ra đề xuất
+                <input type="datetime-local" id="r-out" class="form-input mt-1">
+            </label>
+        </div>
+        <label id="r-shift-wrap" class="hidden block text-xs font-bold text-[#52525b]">Ca đúng
+            <select id="r-shift" class="form-input mt-1"></select>
+        </label>
+        <label class="block text-xs font-bold text-[#52525b]">Lý do *
+            <textarea id="r-reason" rows="3" class="form-input mt-1" placeholder="Tối thiểu 10 ký tự. Lệch quá 2 giờ so với ca cần giải thích chi tiết (30 ký tự trở lên)."></textarea>
+        </label>
+        <div>
+            <div class="text-xs font-bold text-[#52525b]">Minh chứng (không bắt buộc)</div>
+            <input type="file" id="r-files" accept=".jpg,.jpeg,.png,.pdf" multiple class="mt-1 text-sm">
+            <p class="text-[11px] text-[#71717a] mt-1">JPG / PNG / PDF, tối đa 3 tệp, mỗi tệp tối đa 5 MB.</p>
+            <div id="r-existing-files" class="mt-2 space-y-1"></div>
+        </div>
+        <p id="r-deadline" class="text-xs text-[#71717a]"></p>
+        <div class="flex justify-end gap-3">
+            <button type="button" onclick="closeModal('request-modal')" class="btn-outline-brand">Hủy</button>
+            <button type="submit" id="r-submit" class="btn-primary px-5">Gửi yêu cầu</button>
+        </div>
+    </form>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/js/attendance-common.js"></script>
+<script src="/static/js/attendance-history.js"></script>
+{% endblock %}

@@ -26,6 +26,23 @@ class Settings:
     MAX_HOURS_PER_DAY: float = 8
     MAX_HOURS_PER_WEEK: float = 48
 
+    # Sprint 5 (FR-11D mục 2): giá trị mặc định của tham số chấm công.
+    # Admin sửa được ở trang Cài đặt chấm công (lưu trong bảng cau_hinh_cham_cong).
+    ATTENDANCE_DEFAULTS: dict = {
+        "mo_truoc_phut": 15,              # Mở nút Check-in trước giờ ca
+        "an_han_phut": 5,                 # Trễ/sớm trong mức này vẫn là "Đúng giờ"
+        "chong_bam_trung_giay": 60,       # EX-11: bấm trùng trong khoảng này bị bỏ qua
+        "ban_kinh_m": 200,                # Ngoài bán kính này gắn cờ "Ngoài vị trí"
+        "nguong_chua_checkout_phut": 120, # EX-02: quá giờ kết thúc ca bao lâu thì "Chưa check-out"
+        "han_gui_yeu_cau_gio": 48,        # BR-07: hạn gửi yêu cầu bù/sửa công
+        "han_xu_ly_ngay": 3,              # Quy tắc 8: hạn Quản lý xử lý yêu cầu
+        "han_muc_thang": 3,               # Quy tắc 6: số yêu cầu bù công mỗi tháng
+        "do_lech_toi_da_gio": 2,          # Quy tắc 3: lệch quá thì bắt buộc lý do chi tiết
+        "so_tep_toi_da": 3,               # Quy tắc 4: minh chứng
+        "dung_luong_tep_mb": 5,
+        "dai_ip_quan": os.getenv("STORE_IP_PREFIXES", ""),  # VD "113.161.,192.168.1." - IP Wi-Fi quán
+    }
+
     # Database
     DATABASE_URL: str = os.getenv("DATABASE_URL", f"sqlite:///{BASE_DIR / 'qlcl.db'}")
 
