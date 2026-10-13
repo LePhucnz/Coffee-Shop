@@ -62,6 +62,13 @@ class PhanCongCa(Base):
     ma_lich_tuan = Column(Integer, ForeignKey("lich_ca_tuan.id"), nullable=True)
     theo_nguyen_vong = Column(Boolean, default=False)
 
+    # Sprint 5 (EX-18): ca bị hủy do quán đóng cửa đột xuất, mất điện...
+    da_huy = Column(Boolean, default=False)
+    ly_do_huy = Column(String(255), nullable=True)
+    tinh_cong_khi_huy = Column(Boolean, default=False)  # Có tính công cho thời gian đã làm hay không
+    nguoi_huy = Column(Integer, ForeignKey("tai_khoan.id"), nullable=True)
+    ngay_huy = Column(DateTime, nullable=True)
+
     nhan_vien = relationship("NhanVien")
     loai_ca = relationship("LoaiCa")
     lich_tuan = relationship("LichCaTuan", back_populates="phan_cong_list")
@@ -111,3 +118,48 @@ class ChamCong(Base):
     tong_gio_lam = Column(Numeric(6, 2), nullable=True)
     thang = Column(String(7), nullable=True)
     nam = Column(Integer, nullable=True)
+
+    # Sprint 5 (FR-10): giờ gốc do máy ghi nhận, không bao giờ bị sửa (BR-06).
+    # check_in_lan_1 / check_out_lan_1 ở trên là giờ đang có hiệu lực (sau điều chỉnh nếu có).
+    gio_vao_goc = Column(DateTime, nullable=True)
+    gio_ra_goc = Column(DateTime, nullable=True)
+
+    # Vị trí lúc chấm công (GPS trình duyệt + IP + thiết bị)
+    vi_do_vao = Column(Numeric(9, 6), nullable=True)
+    kinh_do_vao = Column(Numeric(9, 6), nullable=True)
+    ip_vao = Column(String(45), nullable=True)
+    khoang_cach_vao = Column(Integer, nullable=True)  # mét tới quán
+    thiet_bi_vao = Column(String(120), nullable=True)
+    vi_do_ra = Column(Numeric(9, 6), nullable=True)
+    kinh_do_ra = Column(Numeric(9, 6), nullable=True)
+    ip_ra = Column(String(45), nullable=True)
+    khoang_cach_ra = Column(Integer, nullable=True)
+    thiet_bi_ra = Column(String(120), nullable=True)
+
+    # Cờ bất thường (FR-10, FR-11D)
+    ngoai_vi_tri = Column(Boolean, default=False)      # EX-07: ngoài bán kính cho phép
+    khong_dinh_vi = Column(Boolean, default=False)     # EX-08: không lấy được GPS
+    thiet_bi_trung = Column(Boolean, default=False)    # EX-17: nhiều tài khoản cùng thiết bị
+    da_xac_minh_co = Column(Boolean, default=False)    # Quản lý đã xác nhận giải trình, gỡ cờ
+    ghi_chu_xac_minh = Column(String(255), nullable=True)
+
+    # FR-11: kết quả đối chiếu với giờ ca, là đầu vào cho tính lương (Sprint 6)
+    an_han_ap_dung = Column(Integer, nullable=True)    # Số phút ân hạn tại thời điểm chấm công
+    phut_di_tre = Column(Integer, default=0)
+    phut_ve_som = Column(Integer, default=0)
+    phut_vuot_ca = Column(Integer, default=0)          # EX-06: giờ ra sau giờ kết thúc ca
+    phut_vuot_ca_duyet = Column(Integer, default=0)    # BR-09: chỉ phần được duyệt mới tính công
+    trang_thai = Column(String(20), nullable=True)
+
+    # FR-11A: điều chỉnh, miễn phạt
+    da_dieu_chinh = Column(Boolean, default=False)
+    mien_phat = Column(Boolean, default=False)
+    ly_do_mien_phat = Column(String(255), nullable=True)
+
+    # Ghi chú xử lý gần nhất của Quản lý
+    da_xu_ly = Column(Boolean, default=False)
+    ghi_chu_quan_ly = Column(String(255), nullable=True)
+    nguoi_xu_ly = Column(Integer, ForeignKey("tai_khoan.id"), nullable=True)
+    ngay_xu_ly = Column(DateTime, nullable=True)
+
+    phan_cong = relationship("PhanCongCa")

@@ -111,6 +111,20 @@ const API = {
         const hideClass = this.isAdmin() ? ".staff-only" : ".admin-only";
         document.querySelectorAll(hideClass).forEach(el => { el.style.display = "none"; });
         this.loadNotificationBadge();
+        if (this.isAdmin()) this.loadAttendanceRequestBadge();
+    },
+
+    // Sprint 5: số yêu cầu bù/sửa công chờ duyệt cạnh menu Quản lý
+    async loadAttendanceRequestBadge() {
+        const badge = document.getElementById("nav-attendance-requests");
+        if (!badge) return;
+        try {
+            const data = await this.request("/api/attendance/requests/pending-count");
+            badge.textContent = data.so_cho_duyet > 9 ? "9+" : data.so_cho_duyet;
+            badge.classList.toggle("hidden", !data.so_cho_duyet);
+        } catch (e) {
+            badge.classList.add("hidden");
+        }
     },
 
     // Sprint 4: số thông báo chưa đọc hiện cạnh menu "Lịch làm của tôi"

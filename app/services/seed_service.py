@@ -10,6 +10,7 @@ def seed_database(db: Session):
     """Nạp dữ liệu mẫu ban đầu nếu cơ sở dữ liệu trống"""
     if db.query(VaiTro).first():
         seed_shift_types(db)
+        seed_sprint5(db)
         return  # Đã có dữ liệu, không nạp lại
 
     # 1. Vai trò (Roles)
@@ -198,6 +199,7 @@ def seed_database(db: Session):
     db.commit()
 
     seed_shift_types(db)
+    seed_sprint5(db)
 
 
 # Sprint 4: tên ca, khung giờ và số nhân viên tối thiểu/tối đa cho các loại ca mẫu
@@ -236,3 +238,81 @@ def seed_shift_types(db: Session):
             changed = True
     if changed:
         db.commit()
+
+
+def seed_sprint5(db: Session):
+    """
+    Sprint 5: tài khoản Chủ quán (Admin) để duyệt yêu cầu của Quản lý (BR-08) và đổi cấu hình chấm công,
+    cùng dữ liệu chấm công mẫu của tuần trước để xem thử các màn hình chấm công.
+    Chỉ thêm khi chưa có, không ghi đè dữ liệu nhóm đã tạo.
+    """
+    from app.models.shift import PhanCongCa, LichCaTuan, ChamCong
+    from app.models.attendance import YeuCauChamCong
+
+    if not db.query(TaiKhoan).filter(TaiKhoan.ma_vai_tro == 1).first() and \
+            not db.query(TaiKhoan).filter(TaiKhoan.ten_dang_nhap == "chu.quan").first():
+        db.add(TaiKhoan(ma_vai_tro=1, ten_dang_nhap="chu.quan",
+                        mat_khau=get_password_hash("Admin@123456"), is_active=True))
+        db.commit()
+
+    # Dữ liệu chấm công mẫu: tuần trước, cho Trần Thị B (NV002) và Lê Văn C (NV003)
+    today = date.today()
+    week = today - timedelta(days=today.weekday() + 7)
+    if db.query(LichCaTuan).filter(LichCaTuan.tuan_bat_dau == week).first():
+        return
+    if not db.query(NhanVien).filter(NhanVien.id.in_([2, 3])).count() == 2:
+        return
+    shift_ids = {lc.ma_loai_ca: lc for lc in db.query(LoaiCa).all()}
+    if not {"CA_SANG", "CA_CHIEU", "CA_PARTTIME_1", "CA_PARTTIME_2"} <= set(shift_ids):
+        return
+    lich = LichCaTuan(tuan_bat_dau=week, trang_thai="da_cong_bo", ngay_cong_bo=datetime.combine(week, time(8, 0)) - timedelta(days=3))
+    db.add(lich)
+    db.flush()
+
+    def at(day, hh, mm):
+        return datetime.combine(week + timedelta(days=day), time(hh, mm))
+
+    store = (10.7769, 106.7009)
+    far = (10.7840, 106.7050)  # Cách quán khoảng 900 m
+    # (nhân viên, mã ca, thứ, giờ vào, giờ ra, tọa độ)
+    samples = [
+        (2, "CA_SANG", 0, at(0, 5, 55), at(0, 14, 2), store),         # Đúng giờ
+        (2, "CA_SANG", 1, at(1, 6, 12), at(1, 14, 0), store),         # Đi trễ 12 phút
+        (2, "CA_CHIEU", 2, at(2, 14, 0), None, store),                # Quên check-out
+        (2, "CA_CHIEU", 3, None, None, None),                         # Vắng không phép
+        (2, "CA_SANG", 4, at(4, 6, 0), at(4, 13, 30), far),           # Ngoài vị trí, về sớm 30 phút
+        (3, "CA_CHIEU", 0, at(0, 13, 58), at(0, 22, 10), store),      # Vượt ca 10 phút chờ duyệt
+        (3, "CA_PARTTIME_1", 1, at(1, 8, 0), at(1, 12, 0), store),    # Đúng giờ
+        (3, "CA_PARTTIME_2", 2, at(2, 18, 20), at(2, 22, 0), store),  # Đi trễ 20 phút
+        (3, "CA_CHIEU", 3, at(3, 14, 1), at(3, 22, 0), None),         # Không có định vị
+    ]
+    forgot = None
+    for ma_nv, ma_ca, day, gio_vao, gio_ra, pos in samples:
+        lc = shift_ids[ma_ca]
+        pc = PhanCongCa(ma_nv=ma_nv, ma_ca=lc.id, ngay_lam=week + timedelta(days=day), ma_lich_tuan=lich.id,
+                        trang_thai="da_cong_bo", bat_dau_thuc_te=gio_vao, ket_thuc_thuc_te=gio_ra)
+        db.add(pc)
+        db.flush()
+        if not gio_vao:
+            continue
+        cc = ChamCong(
+            ma_phan_cong=pc.id, check_in_lan_1=gio_vao, gio_vao_goc=gio_vao, check_out_lan_1=gio_ra, gio_ra_goc=gio_ra,
+            vi_do_vao=pos[0] if pos else None, kinh_do_vao=pos[1] if pos else None, ip_vao="192.0.2.24",
+            khoang_cach_vao=(0 if pos == store else 900) if pos else None,
+            ngoai_vi_tri=pos == far, khong_dinh_vi=pos is None, thiet_bi_trung=False, an_han_ap_dung=5,
+            thang=pc.ngay_lam.strftime("%Y-%m"), nam=pc.ngay_lam.year
+        )
+        db.add(cc)
+        if ma_ca == "CA_CHIEU" and gio_ra is None:
+            forgot = pc
+    db.flush()
+    if forgot:
+        db.add(YeuCauChamCong(
+            ma_phan_cong=forgot.id, ma_nv=2, ma_tai_khoan=2, loai="bu_check_out",
+            gio_ra_de_xuat=datetime.combine(forgot.ngay_lam, time(22, 0)),
+            ly_do="Tôi quên bấm check-out sau khi bàn giao ca cho ca tối.", trang_thai="cho_duyet",
+            han_xu_ly=datetime.combine(forgot.ngay_lam, time(22, 0)) + timedelta(days=3),
+            ngay_tao=datetime.combine(forgot.ngay_lam + timedelta(days=1), time(9, 15)),
+            ngay_cap_nhat=datetime.combine(forgot.ngay_lam + timedelta(days=1), time(9, 15))
+        ))
+    db.commit()

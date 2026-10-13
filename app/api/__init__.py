@@ -4,8 +4,10 @@ from app.api.contracts import router as contracts_router
 from app.api.system import router as system_router
 from app.api.shifts import router as shifts_router
 from app.api.notifications import router as notifications_router
+from app.api.attendance import router as attendance_router
+from app.api.attendance_requests import router as attendance_requests_router
 
 __all__ = [
     "auth_router", "employees_router", "contracts_router", "system_router",
-    "shifts_router", "notifications_router"
+    "shifts_router", "notifications_router", "attendance_router", "attendance_requests_router"
 ]

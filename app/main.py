@@ -12,14 +12,14 @@ import app.models  # Đăng ký toàn bộ metadata models
 from app.services.seed_service import seed_database
 from app.api import (
     auth_router, employees_router, contracts_router, system_router,
-    shifts_router, notifications_router
+    shifts_router, notifications_router, attendance_router, attendance_requests_router
 )
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Khởi tạo bảng cơ sở dữ liệu nếu chưa có
     Base.metadata.create_all(bind=engine)
-    # Sprint 4: thêm cột mới vào bảng cũ (không cần xóa qlcl.db)
+    # Sprint 4-5: thêm cột mới vào bảng cũ (không cần xóa qlcl.db)
     add_missing_columns(engine)
     # Nạp dữ liệu mẫu ban đầu
     db = SessionLocal()
@@ -32,7 +32,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title=settings.PROJECT_NAME,
     version=settings.VERSION,
-    description="Hệ thống Quản lý Nhân sự & Ca làm việc cho Quán Cà phê (Sprint 1 - 4: RBAC, HRM & Xếp ca)",
+    description="Hệ thống Quản lý Nhân sự & Ca làm việc cho Quán Cà phê (Sprint 1 - 5: RBAC, HRM, Xếp ca & Chấm công)",
     lifespan=lifespan
 )
 
@@ -58,6 +58,8 @@ app.include_router(contracts_router)
 app.include_router(system_router)
 app.include_router(shifts_router)
 app.include_router(notifications_router)
+app.include_router(attendance_requests_router)
+app.include_router(attendance_router)
 
 # UI Routes (Giao diện người dùng render bằng Jinja2)
 @app.get("/", response_class=HTMLResponse)
@@ -110,3 +112,36 @@ def schedule_page(request: Request):
 @app.get("/my-schedule", response_class=HTMLResponse)
 def my_schedule_page(request: Request):
     return templates.TemplateResponse(request=request, name="my-schedule.html", context={"title": "Lịch làm của tôi", "active": "my-schedule"})
+
+# Sprint 5: Chấm công trực tuyến (FR-10, FR-11, FR-11A, FR-11B, FR-11C, FR-11D)
+@app.get("/attendance", response_class=HTMLResponse)
+def attendance_page(request: Request):
+    return templates.TemplateResponse(request=request, name="attendance.html", context={"title": "Chấm công", "active": "attendance"})
+
+@app.get("/attendance-history", response_class=HTMLResponse)
+def attendance_history_page(request: Request):
+    return templates.TemplateResponse(request=request, name="attendance-history.html", context={"title": "Lịch sử công", "active": "attendance-history"})
+
+@app.get("/attendance-help", response_class=HTMLResponse)
+def attendance_help_page(request: Request):
+    return templates.TemplateResponse(request=request, name="attendance-help.html", context={"title": "Hướng dẫn chấm công", "active": "attendance-help"})
+
+@app.get("/attendance-manage", response_class=HTMLResponse)
+def attendance_manage_page(request: Request):
+    return templates.TemplateResponse(request=request, name="attendance-manage.html", context={"title": "Quản lý chấm công", "active": "attendance-manage", "admin_only": True})
+
+@app.get("/attendance-requests", response_class=HTMLResponse)
+def attendance_requests_page(request: Request):
+    return templates.TemplateResponse(request=request, name="attendance-requests.html", context={"title": "Yêu cầu bù/sửa công", "active": "attendance-requests", "admin_only": True})
+
+@app.get("/attendance-detail", response_class=HTMLResponse)
+def attendance_detail_page(request: Request):
+    return templates.TemplateResponse(request=request, name="attendance-detail.html", context={"title": "Chi tiết chấm công", "active": "attendance-manage", "admin_only": True})
+
+@app.get("/attendance-adjust", response_class=HTMLResponse)
+def attendance_adjust_page(request: Request):
+    return templates.TemplateResponse(request=request, name="attendance-adjust.html", context={"title": "Điều chỉnh công", "active": "attendance-manage", "admin_only": True})
+
+@app.get("/attendance-settings", response_class=HTMLResponse)
+def attendance_settings_page(request: Request):
+    return templates.TemplateResponse(request=request, name="attendance-settings.html", context={"title": "Cài đặt chấm công", "active": "attendance-settings", "admin_only": True})

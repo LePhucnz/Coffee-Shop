@@ -1,0 +1,84 @@
+{% extends "_layout.html" %}
+
+{% block content %}
+<!-- FR-11C: Hướng dẫn chấm công cho nhân viên, in được khổ A4 -->
+<style>
+    @media print {
+        aside, .no-print, #toast-container, .md\:hidden { display: none !important; }
+        main { padding: 0 !important; }
+        body { background: #fff !important; }
+        .dash-card { box-shadow: none !important; border: 1px solid #ddd !important; break-inside: avoid; }
+        @page { size: A4; margin: 14mm; }
+    }
+</style>
+<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-[#f0e9df]">
+    <div>
+        <h1 class="text-3xl font-extrabold text-[#18181b] tracking-tight">Hướng dẫn chấm công</h1>
+        <p class="text-sm text-[#71717a] mt-1 font-medium">Các bước check-in/check-out, xử lý khi quên chấm công và câu hỏi thường gặp</p>
+    </div>
+    <div class="no-print flex gap-2 self-start">
+        <a href="/attendance" class="btn-outline-brand">Về trang Chấm công</a>
+        <button type="button" onclick="window.print()" class="btn-primary px-5">In hướng dẫn (A4)</button>
+    </div>
+</div>
+
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
+    <div class="dash-card p-5">
+        <h2 class="font-bold">Chấm công hằng ngày</h2>
+        <ol class="list-decimal pl-5 mt-3 space-y-2 text-sm text-[#52525b] marker:text-[#cf6800] marker:font-bold">
+            <li>Đăng nhập, vào mục <strong>Chấm công</strong>.</li>
+            <li>Cho phép trình duyệt truy cập vị trí. Huy hiệu xanh nghĩa là bạn đang trong phạm vi quán.</li>
+            <li>Bấm <strong>Check-in</strong> khi tới quán. Nút mở trước giờ vào ca <span>15</span> phút.</li>
+            <li>Hết ca, bấm <strong>Check-out</strong>. Nếu bấm trước giờ kết thúc, hệ thống hỏi lại vì sẽ tính về sớm.</li>
+            <li>Kiểm tra kết quả ở <strong>Lịch sử công</strong>.</li>
+        </ol>
+    </div>
+    <div class="dash-card p-5">
+        <h2 class="font-bold">Quên chấm công thì làm gì?</h2>
+        <ol class="list-decimal pl-5 mt-3 space-y-2 text-sm text-[#52525b] marker:text-[#cf6800] marker:font-bold">
+            <li>Vào <a href="/attendance-history" class="font-semibold text-[#cf6800] hover:underline">Lịch sử công</a>, chọn ca cần sửa.</li>
+            <li>Bấm <strong>Gửi yêu cầu</strong>, chọn loại: bù check-in, bù check-out, bù cả hai, sửa giờ, sửa ca hoặc giải trình cờ.</li>
+            <li>Nhập giờ thực tế và lý do (tối thiểu 10 ký tự). Đính kèm ảnh hoặc PDF nếu có (tối đa 3 tệp, 5 MB mỗi tệp).</li>
+            <li>Gửi trong vòng <strong>48 giờ</strong> sau khi hết ca. Quản lý xử lý trong 3 ngày.</li>
+            <li>Theo dõi trạng thái ở tab <strong>Yêu cầu của tôi</strong>. Nếu Quản lý cần bổ sung, bạn có 48 giờ để trả lời.</li>
+        </ol>
+    </div>
+</div>
+
+<div class="dash-card p-5 mt-6">
+    <h2 class="font-bold">Ý nghĩa các nhãn</h2>
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 mt-3 text-sm">
+        <div><span class="px-2 py-0.5 rounded-full text-[11px] font-bold bg-emerald-100 text-emerald-700">Đúng giờ</span> Vào trong ân hạn, ra đúng hoặc sau giờ kết thúc.</div>
+        <div><span class="px-2 py-0.5 rounded-full text-[11px] font-bold bg-amber-100 text-amber-700">Đi trễ</span> Vào sau giờ ca quá <span>5</span> phút ân hạn.</div>
+        <div><span class="px-2 py-0.5 rounded-full text-[11px] font-bold bg-amber-100 text-amber-700">Về sớm</span> Check-out trước giờ kết thúc ca.</div>
+        <div><span class="px-2 py-0.5 rounded-full text-[11px] font-bold bg-red-100 text-red-700">Vắng</span> Hết ca mà không check-in.</div>
+        <div><span class="px-2 py-0.5 rounded-full text-[11px] font-bold bg-orange-100 text-orange-700">Chưa check-out</span> Quá 2 giờ sau ca chưa check-out, chưa được tính công.</div>
+        <div><span class="px-2 py-0.5 rounded-full text-[11px] font-bold bg-purple-100 text-purple-700">Ngoài phạm vi / Thiếu GPS</span> Vẫn ghi nhận, Quản lý sẽ xác minh.</div>
+    </div>
+</div>
+
+<div class="dash-card p-5 mt-6">
+    <h2 class="font-bold">Câu hỏi thường gặp</h2>
+    <div class="mt-3 divide-y divide-[#f5efe6] text-sm">
+        <details class="py-3"><summary class="font-semibold cursor-pointer">Điện thoại không bật được GPS, có chấm công được không?</summary>
+            <p class="mt-2 text-[#52525b]">Được. Bản ghi sẽ gắn cờ "Thiếu GPS" để Quản lý xem xét. Nếu bạn đang dùng wifi của quán, hệ thống nhận ra mạng quán và không gắn cờ.</p></details>
+        <details class="py-3"><summary class="font-semibold cursor-pointer">Giờ trên điện thoại khác giờ trên hệ thống?</summary>
+            <p class="mt-2 text-[#52525b]">Giờ chấm công luôn lấy theo giờ máy chủ của quán, không phụ thuộc đồng hồ điện thoại.</p></details>
+        <details class="py-3"><summary class="font-semibold cursor-pointer">Lỡ bấm nút hai lần?</summary>
+            <p class="mt-2 text-[#52525b]">Hệ thống bỏ qua lần bấm lặp trong vòng 60 giây, chỉ giữ lần đầu.</p></details>
+        <details class="py-3"><summary class="font-semibold cursor-pointer">Ca qua đêm tính vào ngày nào?</summary>
+            <p class="mt-2 text-[#52525b]">Tính vào ngày bắt đầu ca, kể cả khi bạn check-out sau nửa đêm.</p></details>
+        <details class="py-3"><summary class="font-semibold cursor-pointer">Làm quá giờ có được tính không?</summary>
+            <p class="mt-2 text-[#52525b]">Phần vượt ca chỉ được tính khi Quản lý duyệt. Trước đó hệ thống chỉ tính giờ trong ca.</p></details>
+        <details class="py-3"><summary class="font-semibold cursor-pointer">Quá 48 giờ mới nhớ ra quên chấm công?</summary>
+            <p class="mt-2 text-[#52525b]">Bạn không gửi yêu cầu được nữa. Hãy liên hệ trực tiếp Quản lý để được điều chỉnh.</p></details>
+        <details class="py-3"><summary class="font-semibold cursor-pointer">Một tháng được gửi bao nhiêu yêu cầu?</summary>
+            <p class="mt-2 text-[#52525b]">Từ yêu cầu thứ <span>4</span> trong tháng vẫn gửi được nhưng sẽ được Quản lý xem xét kỹ hơn.</p></details>
+    </div>
+</div>
+
+<div class="dash-card p-5 mt-6">
+    <h2 class="font-bold">Liên hệ khi cần hỗ trợ</h2>
+    <p class="text-sm text-[#52525b] mt-2">Gặp Quản lý ca hoặc Quản lý cửa hàng trực tiếp tại quầy. Khi hệ thống gặp sự cố, ghi giờ vào/ra vào sổ bàn giao ca để Quản lý điều chỉnh hàng loạt sau.</p>
+</div>
+{% endblock %}
