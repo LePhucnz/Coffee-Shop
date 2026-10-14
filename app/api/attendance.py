@@ -588,7 +588,7 @@ def build_period(db: Session, tu_ngay: date, den_ngay: date, ma_nv: Optional[int
     for r in rows:
         line = by_nv.get(r.ma_nv)
         if not line:
-            nv = db.query(NhanVien).get(r.ma_nv)
+            nv = db.get(NhanVien, r.ma_nv)
             line = by_nv[r.ma_nv] = DongBangCong(
                 ma_nv=r.ma_nv, ma_nhan_vien=r.ma_nhan_vien, ho_ten=r.ho_ten, ten_vi_tri=r.ten_vi_tri,
                 trang_thai_nv=("da_nghi" if nv and (nv.is_deleted or nv.trang_thai == "da_nghi") else (nv.trang_thai if nv else None)),
