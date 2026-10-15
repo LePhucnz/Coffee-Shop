@@ -938,7 +938,7 @@ def config_response(db: Session, user: TaiKhoan) -> CauHinhChamCongSchema:
         vi_do_quan=float(store.vi_do) if store and store.vi_do is not None else None,
         kinh_do_quan=float(store.kinh_do) if store and store.kinh_do is not None else None,
         ngay_cap_nhat=last.ngay_cap_nhat if last else None,
-        co_the_sua=svc.role_of(user) == "Admin"
+        co_the_sua=svc.role_of(user) in ADMIN_ROLES
     )
 
 
@@ -948,16 +948,19 @@ def get_settings(current_user: TaiKhoan = Depends(require_roles(ADMIN_ROLES)), d
 
 
 @router.put("/settings", response_model=CauHinhChamCongSchema)
-def update_settings(data: CauHinhChamCongSchema, current_user: TaiKhoan = Depends(require_roles(["Admin"])),
+def update_settings(data: CauHinhChamCongSchema, current_user: TaiKhoan = Depends(require_roles(ADMIN_ROLES)),
                     db: Session = Depends(get_db)):
-    """Chỉ Admin (Chủ quán) được đổi. Giá trị mới áp dụng cho các lần chấm công phát sinh sau thời điểm lưu."""
+    """Chủ quán hoặc Quản lý được đổi. Giá trị mới áp dụng cho các lần chấm công phát sinh sau thời điểm lưu."""
     values = data.model_dump(exclude={"ma_cua_hang", "ten_cua_hang", "vi_do_quan", "kinh_do_quan",
                                       "ngay_cap_nhat", "co_the_sua"})
     svc.save_config(db, values, current_user.id)
-    if data.ma_cua_hang and data.vi_do_quan is not None and data.kinh_do_quan is not None:
-        store = db.query(CuaHang).filter(CuaHang.id == data.ma_cua_hang).first()
-        if store:
-            store.vi_do, store.kinh_do = data.vi_do_quan, data.kinh_do_quan
+    target_store = None
+    if data.ma_cua_hang:
+        target_store = db.query(CuaHang).filter(CuaHang.id == data.ma_cua_hang).first()
+    if not target_store:
+        target_store = svc.store_of(db, current_user.nhan_vien)
+    if target_store and data.vi_do_quan is not None and data.kinh_do_quan is not None:
+        target_store.vi_do, target_store.kinh_do = data.vi_do_quan, data.kinh_do_quan
     db.add(NhatKyHeThong(ma_tai_khoan=current_user.id, hanh_dong="cap_nhat_cau_hinh_cham_cong",
                          ly_do=json.dumps(values, ensure_ascii=False), trang_thai="thanh_cong"))
     db.commit()
