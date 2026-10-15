@@ -6,9 +6,40 @@ from app.models.user import TaiKhoan
 from app.models.shift import LoaiCa
 from app.core.security import get_password_hash
 
+def migrate_stores(db: Session):
+    """
+    Cập nhật cơ sở:
+    - Đổi cơ sở Quận 1 thành cơ sở Thủ Đức
+    - Chuyển toàn bộ nhân viên ở cơ sở Quận 3 sang cơ sở Thủ Đức (id=1)
+    - Xóa cơ sở Quận 3
+    """
+    try:
+        # Chuyển nhân viên từ cơ sở 2 sang cơ sở 1
+        db.query(NhanVien).filter(NhanVien.ma_cua_hang == 2).update({NhanVien.ma_cua_hang: 1})
+        # Xóa cơ sở Quận 3 nếu có
+        q3_stores = db.query(CuaHang).filter(
+            (CuaHang.id == 2) | (CuaHang.ten_cua_hang.ilike("%Quận 3%"))
+        ).all()
+        for s in q3_stores:
+            db.query(NhanVien).filter(NhanVien.ma_cua_hang == s.id).update({NhanVien.ma_cua_hang: 1})
+            db.delete(s)
+
+        # Đổi cơ sở Quận 1 thành cơ sở Thủ Đức
+        s1 = db.query(CuaHang).filter(CuaHang.id == 1).first()
+        if s1 and "Quận 1" in s1.ten_cua_hang:
+            s1.ten_cua_hang = "The Coffee Shop - Thủ Đức"
+            s1.dia_chi = "123 Võ Văn Ngân, TP. Thủ Đức, TP.HCM"
+            s1.vi_do = 10.8505
+            s1.kinh_do = 106.7719
+        db.commit()
+    except Exception:
+        db.rollback()
+
+
 def seed_database(db: Session):
     """Nạp dữ liệu mẫu ban đầu nếu cơ sở dữ liệu trống"""
     if db.query(VaiTro).first():
+        migrate_stores(db)
         seed_shift_types(db)
         seed_sprint5(db)
         return  # Đã có dữ liệu, không nạp lại
@@ -34,8 +65,7 @@ def seed_database(db: Session):
 
     # 3. Cửa hàng (Stores)
     cua_hang_data = [
-        CuaHang(id=1, ten_cua_hang="The Coffee Shop - Quận 1", dia_chi="123 Lê Lợi, Q.1, TP.HCM", vi_do=10.7769, kinh_do=106.7009, trang_thai=True),
-        CuaHang(id=2, ten_cua_hang="The Coffee Shop - Quận 3", dia_chi="456 Võ Văn Tần, Q.3, TP.HCM", vi_do=10.7798, kinh_do=106.6874, trang_thai=True)
+        CuaHang(id=1, ten_cua_hang="The Coffee Shop - Thủ Đức", dia_chi="123 Võ Văn Ngân, TP. Thủ Đức, TP.HCM", vi_do=10.8505, kinh_do=106.7719, trang_thai=True)
     ]
     db.add_all(cua_hang_data)
     db.commit()
@@ -64,7 +94,7 @@ def seed_database(db: Session):
             ho_ten="Nguyễn Văn A",
             so_dien_thoai="0901234567",
             email="nva@coffeeshop.com",
-            dia_chi="123 Lê Lợi, Q.1, TP.HCM",
+            dia_chi="123 Võ Văn Ngân, TP. Thủ Đức, TP.HCM",
             cccd="079090001111",
             ngay_sinh=date(1995, 5, 20),
             gioi_tinh="Nam",
@@ -81,7 +111,7 @@ def seed_database(db: Session):
             ho_ten="Trần Thị B",
             so_dien_thoai="0912345678",
             email="ttb@coffeeshop.com",
-            dia_chi="456 Hai Bà Trưng, Q.1, TP.HCM",
+            dia_chi="456 Kha Vạn Cân, TP. Thủ Đức, TP.HCM",
             cccd="079092002222",
             ngay_sinh=1999 and date(1999, 8, 15),
             gioi_tinh="Nữ",
@@ -93,12 +123,12 @@ def seed_database(db: Session):
         NhanVien(
             id=3,
             ma_nhan_vien="NV003",
-            ma_cua_hang=2,
+            ma_cua_hang=1,
             ma_vi_tri=3,
             ho_ten="Lê Văn C",
             so_dien_thoai="0923456789",
             email="lvc@coffeeshop.com",
-            dia_chi="789 CMT8, Q.3, TP.HCM",
+            dia_chi="789 Đặng Văn Bi, TP. Thủ Đức, TP.HCM",
             cccd="079095003333",
             ngay_sinh=date(2001, 11, 2),
             gioi_tinh="Nam",
@@ -272,8 +302,8 @@ def seed_sprint5(db: Session):
     def at(day, hh, mm):
         return datetime.combine(week + timedelta(days=day), time(hh, mm))
 
-    store = (10.7769, 106.7009)
-    far = (10.7840, 106.7050)  # Cách quán khoảng 900 m
+    store = (10.8505, 106.7719)
+    far = (10.8580, 106.7760)  # Cách quán khoảng 900 m
     # (nhân viên, mã ca, thứ, giờ vào, giờ ra, tọa độ)
     samples = [
         (2, "CA_SANG", 0, at(0, 5, 55), at(0, 14, 2), store),         # Đúng giờ

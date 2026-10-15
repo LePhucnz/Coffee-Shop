@@ -11,7 +11,7 @@
 </div>
 
 <div id="readonly-note" class="hidden mt-6 rounded-xl bg-amber-50 border border-amber-200 px-4 py-3 text-sm text-amber-800">
-    Chỉ Chủ quán (Admin) được thay đổi cài đặt. Bạn đang xem ở chế độ chỉ đọc.
+    Chỉ Quản lý hoặc Chủ quán được thay đổi cài đặt. Bạn đang xem ở chế độ chỉ đọc.
 </div>
 
 <form id="settings-form" class="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
@@ -33,7 +33,7 @@
 
     <div class="dash-card p-5 space-y-3">
         <h2 class="font-bold">Vị trí cửa hàng</h2>
-        <div id="store-name" class="text-sm font-semibold"></div>
+        <div id="store-name" class="text-sm font-semibold text-[#cf6800]"></div>
         <div class="grid grid-cols-2 gap-3">
             <label class="text-xs font-bold text-[#52525b]">Vĩ độ
                 <input type="number" step="0.000001" name="vi_do_quan" class="form-input mt-1">
@@ -49,7 +49,15 @@
             <input type="text" name="dai_ip_quan" class="form-input mt-1" placeholder="192.168.1., 10.0.0.">
         </label>
         <p class="text-[11px] text-[#71717a]">Không lấy được GPS nhưng IP thuộc mạng quán thì không gắn cờ Thiếu GPS.</p>
-        <button type="button" id="btn-here" class="btn-outline-brand">Lấy vị trí hiện tại của tôi</button>
+        <div class="flex flex-wrap gap-2 pt-1">
+            <button type="button" id="btn-here" class="btn-outline-brand flex items-center gap-1.5">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+                <span id="btn-here-text">Lấy vị trí hiện tại của tôi</span>
+            </button>
+            <button type="button" id="btn-default-store" class="btn-outline-brand text-xs">
+                Tọa độ Thủ Đức mặc định
+            </button>
+        </div>
     </div>
 
     <div class="dash-card p-5 space-y-3">

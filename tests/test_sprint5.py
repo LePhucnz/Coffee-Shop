@@ -12,8 +12,8 @@ from app.config import settings
 from app.services import attendance_service as att
 from app.services import shift_service as shift_svc
 
-STORE = (10.7769, 106.7009)       # Tọa độ quán Quận 1 trong dữ liệu mẫu
-FAR_AWAY = (10.8231, 106.6297)    # Cách quán khoảng 10 km
+STORE = (10.8505, 106.7719)       # Tọa độ quán Thủ Đức trong dữ liệu mẫu
+FAR_AWAY = (10.7769, 106.7009)    # Cách quán khoảng 11 km (Quận 1)
 
 _counter = itertools.count(1)
 
@@ -124,7 +124,7 @@ def send_request(client, headers, pc, loai, vao=None, ra=None, ly_do="Tôi quên
 
 def test_distance_meters():
     assert att.distance_meters(*STORE, *STORE) == 0
-    assert 9000 < att.distance_meters(*STORE, *FAR_AWAY) < 11000
+    assert 9000 < att.distance_meters(*STORE, *FAR_AWAY) < 13000
 
 
 def test_default_config_matches_brd(client, db_session):
@@ -834,10 +834,14 @@ def test_need_info_request_expires(client, clock):
 def test_only_admin_can_change_settings(client):
     admin = admin_headers(client)
     owner = owner_headers(client)
+    _, staff = new_staff(client, admin)
     current = client.get("/api/attendance/settings", headers=admin).json()
-    assert current["co_the_sua"] is False
-    assert client.put("/api/attendance/settings", headers=admin, json=current).status_code == 403
+    assert current["co_the_sua"] is True
+    assert client.get("/api/attendance/settings", headers=staff).status_code == 403
+    assert client.put("/api/attendance/settings", headers=staff, json=current).status_code == 403
     changed = {**current, "mo_truoc_phut": 10}
+    res = client.put("/api/attendance/settings", headers=admin, json=changed)
+    assert res.status_code == 200 and res.json()["mo_truoc_phut"] == 10
     res = client.put("/api/attendance/settings", headers=owner, json=changed)
     assert res.status_code == 200 and res.json()["mo_truoc_phut"] == 10
     assert client.put("/api/attendance/settings", headers=owner, json={**current, "ban_kinh_m": 5}).status_code == 422
