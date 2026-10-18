@@ -118,3 +118,5 @@ class BanGhiDieuChinh(Base):
     ma_yeu_cau = Column(Integer, ForeignKey("yeu_cau_cham_cong.id"), nullable=True)
     nguoi_tao = Column(Integer, ForeignKey("tai_khoan.id"), nullable=True)
     ngay_tao = Column(DateTime, default=datetime.now)
+    # Sprint 6: kỳ lương đã chốt có tính khoản điều chỉnh này (để không tính hai lần)
+    ma_ky_luong = Column(Integer, ForeignKey("ky_luong.id"), nullable=True)
