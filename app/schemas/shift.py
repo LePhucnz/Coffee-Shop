@@ -160,6 +160,14 @@ class LichCuaToiResponse(BaseModel):
 
 # ---------- Thông báo ----------
 
+class ThongBaoCreate(BaseModel):
+    ma_nv: Optional[int] = Field(None, description="Mã nhân viên nhận thông báo (để trống nếu gửi cho tất cả)")
+    tieu_de: str = Field(..., min_length=2, max_length=200)
+    noi_dung: str = Field(..., min_length=2, max_length=1000)
+    loai: Optional[str] = Field("he_thong", max_length=50)
+    lien_ket: Optional[str] = Field(None, max_length=255)
+
+
 class ThongBaoResponse(BaseModel):
     id: int
     tieu_de: str
@@ -174,6 +182,7 @@ class ThongBaoResponse(BaseModel):
 class DanhSachThongBao(BaseModel):
     so_chua_doc: int
     items: List[ThongBaoResponse]
+
 
 
 # ---------- Mở rộng FR-07: Đăng ký nguyện vọng theo tháng ----------

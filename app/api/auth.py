@@ -6,14 +6,14 @@ from app.database import get_db
 from app.core.deps import get_current_user, require_roles
 from app.core.security import (
     decode_token, create_access_token, get_password_hash,
-    create_reset_token, validate_password_complexity
+    create_reset_token, validate_password_complexity, verify_password
 )
 from app.models.user import TaiKhoan, LichSuDangNhap
 from app.schemas.auth import (
     LoginRequest, TokenResponse, RefreshTokenRequest,
     RegisterRequest, UserResponse, LoginHistoryResponse, ToggleActiveRequest,
     ForgotPasswordRequest, ForgotPasswordResponse,
-    ResetPasswordRequest, ResetPasswordResponse
+    ResetPasswordRequest, ResetPasswordResponse, ChangePasswordRequest
 )
 from app.services.auth_service import AuthService
 from app.config import settings
@@ -300,3 +300,103 @@ def toggle_user_active(
         so_dien_thoai=user.nhan_vien.so_dien_thoai if user.nhan_vien else None,
         trang_thai_nhan_vien=user.nhan_vien.trang_thai if user.nhan_vien else None
     )
+
+@router.post("/logout")
+def logout(current_user: TaiKhoan = Depends(get_current_user)):
+    """Đăng xuất người dùng khỏi phiên làm việc hiện tại"""
+    return {"message": "Đăng xuất thành công"}
+
+@router.post("/change-password")
+def change_password(
+    data: ChangePasswordRequest,
+    current_user: TaiKhoan = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Đổi mật khẩu người dùng đang đăng nhập:
+    - Xác thực mật khẩu cũ
+    - Kiểm tra độ phức tạp của mật khẩu mới (≥ 8 ký tự, gồm cả chữ và số)
+    - Cập nhật mật khẩu băm bcrypt
+    """
+    if not verify_password(data.mat_khau_cu, current_user.mat_khau):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Mật khẩu hiện tại không chính xác"
+        )
+
+    if not validate_password_complexity(data.mat_khau_moi):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Mật khẩu mới phải có độ dài tối thiểu 8 ký tự và bao gồm cả chữ cái lẫn chữ số"
+        )
+
+    current_user.mat_khau = get_password_hash(data.mat_khau_moi)
+    current_user.so_lan_dang_nhap_sai = 0
+    current_user.lockout_until = None
+    db.commit()
+
+    return {"message": "Đổi mật khẩu thành công! Bạn có thể tiếp tục sử dụng hệ thống."}
+
+@router.get("/users", response_model=List[UserResponse])
+def list_users(
+    keyword: Optional[str] = None,
+    ma_vai_tro: Optional[int] = None,
+    is_active: Optional[bool] = None,
+    current_user: TaiKhoan = Depends(require_roles(["Admin", "Manager"])),
+    db: Session = Depends(get_db)
+):
+    """
+    FR-03: Danh sách toàn bộ tài khoản người dùng trong hệ thống (Admin/Manager)
+    """
+    query = db.query(TaiKhoan)
+    if is_active is not None:
+        query = query.filter(TaiKhoan.is_active == is_active)
+    if ma_vai_tro is not None:
+        query = query.filter(TaiKhoan.ma_vai_tro == ma_vai_tro)
+    if keyword:
+        kw = f"%{keyword.strip()}%"
+        from app.models.employee import NhanVien
+        query = query.outerjoin(NhanVien, TaiKhoan.ma_nv == NhanVien.id).filter(
+            TaiKhoan.ten_dang_nhap.ilike(kw) | NhanVien.ho_ten.ilike(kw) | NhanVien.email.ilike(kw)
+        )
+    users = query.order_by(TaiKhoan.id.desc()).all()
+    return [
+        UserResponse(
+            id=u.id,
+            ten_dang_nhap=u.ten_dang_nhap,
+            is_active=u.is_active,
+            ma_vai_tro=u.ma_vai_tro,
+            ten_vai_tro=u.vai_tro.ten_vai_tro if u.vai_tro else None,
+            ma_nv=u.ma_nv,
+            ho_ten=u.nhan_vien.ho_ten if u.nhan_vien else None,
+            email=u.nhan_vien.email if u.nhan_vien else None,
+            so_dien_thoai=u.nhan_vien.so_dien_thoai if u.nhan_vien else None,
+            trang_thai_nhan_vien=u.nhan_vien.trang_thai if u.nhan_vien else None
+        )
+        for u in users
+    ]
+
+@router.get("/users/{user_id}", response_model=UserResponse)
+def get_user_by_id(
+    user_id: int,
+    current_user: TaiKhoan = Depends(require_roles(["Admin", "Manager"])),
+    db: Session = Depends(get_db)
+):
+    """
+    FR-03: Chi tiết thông tin tài khoản người dùng theo ID (Admin/Manager)
+    """
+    user = db.query(TaiKhoan).filter(TaiKhoan.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Không tìm thấy tài khoản người dùng")
+    return UserResponse(
+        id=user.id,
+        ten_dang_nhap=user.ten_dang_nhap,
+        is_active=user.is_active,
+        ma_vai_tro=user.ma_vai_tro,
+        ten_vai_tro=user.vai_tro.ten_vai_tro if user.vai_tro else None,
+        ma_nv=user.ma_nv,
+        ho_ten=user.nhan_vien.ho_ten if user.nhan_vien else None,
+        email=user.nhan_vien.email if user.nhan_vien else None,
+        so_dien_thoai=user.nhan_vien.so_dien_thoai if user.nhan_vien else None,
+        trang_thai_nhan_vien=user.nhan_vien.trang_thai if user.nhan_vien else None
+    )

@@ -5,3 +5,4 @@ __pycache__/
 # Sprint 5: minh chứng yêu cầu bù/sửa công do người dùng tải lên
 app/static/uploads/attendance/
 app/static/uploads/contracts/
+app/static/uploads/avatars/
