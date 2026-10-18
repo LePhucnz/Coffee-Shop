@@ -43,6 +43,21 @@ class Settings:
         "dai_ip_quan": os.getenv("STORE_IP_PREFIXES", ""),  # VD "113.161.,192.168.1." - IP Wi-Fi quán
     }
 
+    # Sprint 6 (FR-12): chính sách tính lương mặc định.
+    # Admin sửa được ở trang Cài đặt lương (lưu chung bảng cau_hinh_cham_cong, khóa riêng).
+    PAYROLL_DEFAULTS: dict = {
+        "gio_chuan_thang": 208,             # Lương tháng quy đổi ra đơn giá giờ = lương tháng / số giờ này
+        "nguong_luong_thang": 1000000,      # Mức lương HĐ từ mức này trở lên được hiểu là lương tháng, dưới là lương giờ
+        "cach_phat": "theo_phut",           # 'theo_phut' (trừ theo số phút) | 'co_dinh' (mức cố định mỗi lần)
+        "phat_moi_phut": 1000,              # Đồng / phút trễ hoặc sớm
+        "phat_moi_lan": 20000,              # Đồng / lần trễ hoặc sớm
+        "phat_vang_moi_lan": 0,             # Đồng / ca vắng không phép (0 = không phạt tiền)
+        "thuong_chuyen_can": 300000,        # Thưởng khi cả kỳ không trễ, sớm, vắng
+        "chuyen_can_so_ca_toi_thieu": 4,    # Phải làm đủ số ca này mới xét chuyên cần
+        "chuyen_can_ky_tuan": False,        # Có xét chuyên cần cho kỳ lương tuần hay không
+        "he_so_ngay_le_mac_dinh": 2.0,      # Hệ số gợi ý khi thêm ngày lễ mới
+    }
+
     # Database
     DATABASE_URL: str = os.getenv("DATABASE_URL", f"sqlite:///{BASE_DIR / 'qlcl.db'}")
 

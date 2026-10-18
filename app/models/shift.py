@@ -18,6 +18,9 @@ class LoaiCa(Base):
     so_nv_toi_thieu = Column(Integer, default=1)
     so_nv_toi_da = Column(Integer, default=3)
 
+    # Sprint 6 (FR-12): hệ số lương của ca (VD ca đêm × 1.2), Admin cấu hình
+    he_so_luong = Column(Numeric(4, 2), nullable=True)  # Trống = 1.0
+
 
 class LichTrinh(Base):
     __tablename__ = "lich_trinh"

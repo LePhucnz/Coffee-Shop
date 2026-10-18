@@ -1,0 +1,60 @@
+{% extends "_layout.html" %}
+
+{% block content %}
+<!-- Sprint 6: Nhân viên xem/tải phiếu lương của chính mình (FR-13) -->
+<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-[#f0e9df]">
+    <div>
+        <h1 class="text-3xl font-extrabold text-[#18181b] tracking-tight">Phiếu lương của tôi</h1>
+        <p class="text-sm text-[#71717a] mt-1 font-medium">Phiếu lương hiện ở đây sau khi Quản lý chốt kỳ lương. Bạn chỉ xem được phiếu của chính mình.</p>
+    </div>
+    <a href="/attendance-history" class="btn-outline-brand self-start">Xem lịch sử công</a>
+</div>
+
+<div id="latest" class="hidden mt-6 rounded-2xl bg-[#1c1510] text-white p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+    <div>
+        <div id="latest-period" class="text-[11px] font-bold uppercase text-[#e8b98a]"></div>
+        <div id="latest-net" class="text-4xl font-extrabold mt-1"></div>
+        <div id="latest-meta" class="text-sm text-[#a19991] mt-1"></div>
+    </div>
+    <div class="flex gap-2">
+        <a id="latest-view" class="btn-primary px-5">Xem chi tiết</a>
+        <button type="button" id="latest-pdf" class="px-4 py-2 rounded-xl border border-white/20 text-sm font-bold hover:bg-white/10">Tải PDF</button>
+    </div>
+</div>
+
+<section class="dash-card p-5 mt-6">
+    <h2 class="font-bold mb-3">Các kỳ lương đã chốt</h2>
+    <div class="overflow-x-auto">
+        <table class="w-full text-sm">
+            <thead>
+                <tr class="bg-[#eee7db]/80 text-xs font-bold text-[#52525b] text-left">
+                    <th class="py-2 px-2 rounded-l-lg">Kỳ lương</th>
+                    <th class="py-2 px-2 text-center">Số ca</th>
+                    <th class="py-2 px-2 text-right">Giờ công</th>
+                    <th class="py-2 px-2 text-center">Trễ / Sớm</th>
+                    <th class="py-2 px-2 text-right">Lương cơ bản</th>
+                    <th class="py-2 px-2 text-right">Thưởng</th>
+                    <th class="py-2 px-2 text-right">Phạt</th>
+                    <th class="py-2 px-2 text-right">Thực lãnh</th>
+                    <th class="py-2 px-2 rounded-r-lg"></th>
+                </tr>
+            </thead>
+            <tbody id="rows" class="divide-y divide-[#f5efe6]">
+                <tr><td colspan="9" class="py-6 text-center text-[#71717a]">Đang tải...</td></tr>
+            </tbody>
+        </table>
+    </div>
+</section>
+
+<div class="dash-card p-5 mt-6 text-xs text-[#52525b] space-y-1">
+    <h2 class="text-sm font-bold text-[#18181b]">Lương được tính thế nào?</h2>
+    <p>Lương = Giờ làm thực tế × Đơn giá/giờ × Hệ số ca + Thưởng - Phạt. Giờ làm lấy từ các ca đã check-in và check-out đầy đủ.</p>
+    <p>Ca quên check-out chưa được tính: hãy gửi yêu cầu bù công ở <a href="/attendance-history" class="text-[#cf6800] font-bold hover:underline">Lịch sử công</a> trong 48 giờ. Nếu kỳ đã chốt, phần bù được cộng vào kỳ lương sau.</p>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/js/attendance-common.js"></script>
+<script src="/static/js/payroll-common.js"></script>
+<script src="/static/js/my-payslips.js"></script>
+{% endblock %}

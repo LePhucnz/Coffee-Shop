@@ -42,6 +42,7 @@ def seed_database(db: Session):
         migrate_stores(db)
         seed_shift_types(db)
         seed_sprint5(db)
+        seed_sprint6(db)
         return  # Đã có dữ liệu, không nạp lại
 
     # 1. Vai trò (Roles)
@@ -230,6 +231,7 @@ def seed_database(db: Session):
 
     seed_shift_types(db)
     seed_sprint5(db)
+    seed_sprint6(db)
 
 
 # Sprint 4: tên ca, khung giờ và số nhân viên tối thiểu/tối đa cho các loại ca mẫu
@@ -346,3 +348,38 @@ def seed_sprint5(db: Session):
             ngay_cap_nhat=datetime.combine(forgot.ngay_lam + timedelta(days=1), time(9, 15))
         ))
     db.commit()
+
+
+# Sprint 6: hệ số lương mẫu của loại ca và ngày lễ (Admin sửa được ở trang Cài đặt lương)
+SHIFT_COEFFICIENTS = {"CA_PARTTIME_2": 1.2}  # Ca tối × 1.2 (ví dụ "ca đêm × 1.2" trong BRD)
+
+HOLIDAYS = [
+    ((1, 1), "Tết Dương lịch"),
+    ((4, 30), "Ngày Giải phóng miền Nam"),
+    ((5, 1), "Quốc tế Lao động"),
+    ((9, 2), "Quốc khánh"),
+]
+LUNAR_HOLIDAYS = {
+    2026: [((2, 16), "Tết Nguyên đán"), ((2, 17), "Tết Nguyên đán"), ((2, 18), "Tết Nguyên đán"),
+           ((2, 19), "Tết Nguyên đán"), ((2, 20), "Tết Nguyên đán"), ((4, 26), "Giỗ Tổ Hùng Vương")],
+    2027: [((2, 5), "Tết Nguyên đán"), ((2, 6), "Tết Nguyên đán"), ((2, 7), "Tết Nguyên đán"),
+           ((2, 8), "Tết Nguyên đán"), ((2, 9), "Tết Nguyên đán"), ((4, 16), "Giỗ Tổ Hùng Vương")],
+}
+
+
+def seed_sprint6(db: Session):
+    """Chỉ điền ô hệ số còn trống và chỉ thêm ngày lễ khi bảng ngày lễ đang rỗng"""
+    from app.models.payroll import NgayLe
+
+    changed = False
+    for lc in db.query(LoaiCa).all():
+        if lc.he_so_luong is None:
+            lc.he_so_luong = SHIFT_COEFFICIENTS.get(lc.ma_loai_ca, 1.0)
+            changed = True
+    if not db.query(NgayLe).first():
+        for year in (2026, 2027):
+            for (m, d), name in HOLIDAYS + LUNAR_HOLIDAYS.get(year, []):
+                db.add(NgayLe(ngay=date(year, m, d), ten=name, he_so=2.0))
+        changed = True
+    if changed:
+        db.commit()

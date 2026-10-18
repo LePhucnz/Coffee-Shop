@@ -12,7 +12,7 @@ import app.models  # Đăng ký toàn bộ metadata models
 from app.services.seed_service import seed_database
 from app.api import (
     auth_router, employees_router, contracts_router, system_router,
-    shifts_router, notifications_router, attendance_router, attendance_requests_router
+    shifts_router, notifications_router, attendance_router, attendance_requests_router, payroll_router
 )
 
 @asynccontextmanager
@@ -32,7 +32,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title=settings.PROJECT_NAME,
     version=settings.VERSION,
-    description="Hệ thống Quản lý Nhân sự & Ca làm việc cho Quán Cà phê (Sprint 1 - 5: RBAC, HRM, Xếp ca & Chấm công)",
+    description="Hệ thống Quản lý Nhân sự & Ca làm việc cho Quán Cà phê (Sprint 1 - 6: RBAC, HRM, Xếp ca, Chấm công & Tính lương)",
     lifespan=lifespan
 )
 
@@ -60,6 +60,7 @@ app.include_router(shifts_router)
 app.include_router(notifications_router)
 app.include_router(attendance_requests_router)
 app.include_router(attendance_router)
+app.include_router(payroll_router)
 
 # UI Routes (Giao diện người dùng render bằng Jinja2)
 @app.get("/", response_class=HTMLResponse)
@@ -145,3 +146,21 @@ def attendance_adjust_page(request: Request):
 @app.get("/attendance-settings", response_class=HTMLResponse)
 def attendance_settings_page(request: Request):
     return templates.TemplateResponse(request=request, name="attendance-settings.html", context={"title": "Cài đặt chấm công", "active": "attendance-settings", "admin_only": True})
+
+# Sprint 6: Tính lương tự động và báo cáo lương (FR-12, FR-13)
+@app.get("/payroll", response_class=HTMLResponse)
+def payroll_page(request: Request):
+    return templates.TemplateResponse(request=request, name="payroll.html", context={"title": "Tính lương", "active": "payroll", "admin_only": True})
+
+@app.get("/payslip", response_class=HTMLResponse)
+def payslip_page(request: Request):
+    # Quyền xem phiếu được kiểm tra ở API: nhân viên chỉ xem phiếu đã chốt của chính mình
+    return templates.TemplateResponse(request=request, name="payslip.html", context={"title": "Phiếu lương", "active": "my-payslips"})
+
+@app.get("/my-payslips", response_class=HTMLResponse)
+def my_payslips_page(request: Request):
+    return templates.TemplateResponse(request=request, name="my-payslips.html", context={"title": "Phiếu lương của tôi", "active": "my-payslips"})
+
+@app.get("/payroll-settings", response_class=HTMLResponse)
+def payroll_settings_page(request: Request):
+    return templates.TemplateResponse(request=request, name="payroll-settings.html", context={"title": "Cài đặt lương", "active": "payroll-settings", "admin_only": True})
