@@ -156,6 +156,49 @@ def list_schedulable_employees(
     ).order_by(NhanVien.ho_ten).all()
     return [map_nhan_vien_response(nv) for nv in items]
 
+@router.get("/me", response_model=NhanVienResponse)
+def get_my_employee_profile(
+    current_user: TaiKhoan = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Lấy thông tin hồ sơ nhân sự của người dùng đang đăng nhập"""
+    if not current_user.ma_nv:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Tài khoản chưa liên kết với hồ sơ nhân viên"
+        )
+    nv = db.query(NhanVien).filter(NhanVien.id == current_user.ma_nv).first()
+    if not nv:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Không tìm thấy hồ sơ nhân viên")
+    return map_nhan_vien_response(nv)
+
+@router.put("/me", response_model=NhanVienResponse)
+def update_my_employee_profile(
+    data: NhanVienUpdate,
+    current_user: TaiKhoan = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Nhân viên tự cập nhật thông tin liên hệ cá nhân"""
+    if not current_user.ma_nv:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Tài khoản chưa liên kết với hồ sơ nhân viên"
+        )
+    nv = db.query(NhanVien).filter(NhanVien.id == current_user.ma_nv).first()
+    if not nv:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Không tìm thấy hồ sơ nhân viên")
+
+    check_duplicate_contact(db, data.email, data.so_dien_thoai, exclude_id=nv.id)
+    allowed_fields = {"so_dien_thoai", "email", "dia_chi", "tinh_trang_hon_nhan", "so_nhan_khau"}
+    for field in allowed_fields:
+        val = getattr(data, field, None)
+        if val is not None:
+            setattr(nv, field, val)
+
+    db.commit()
+    db.refresh(nv)
+    return map_nhan_vien_response(nv)
+
 @router.get("/{employee_id}", response_model=NhanVienResponse)
 def get_employee(
     employee_id: int,
@@ -365,10 +408,16 @@ def unarchive_employee(
 def upload_avatar(
     employee_id: int,
     file: UploadFile = File(...),
-    current_user: TaiKhoan = Depends(require_roles(["Admin", "Manager"])),
+    current_user: TaiKhoan = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """FR-04: Tải lên ảnh đại diện nhân viên (jpg, png, webp; tối đa 5MB)"""
+    role_name = current_user.vai_tro.ten_vai_tro if current_user.vai_tro else "Staff"
+    if role_name not in ["Admin", "Manager"] and current_user.ma_nv != employee_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Nhân viên chỉ có quyền cập nhật ảnh đại diện của chính mình"
+        )
     nv = get_employee_or_404(db, employee_id)
     nv.anh_dai_dien = save_upload(file, "avatars", IMAGE_EXTENSIONS)
     db.commit()

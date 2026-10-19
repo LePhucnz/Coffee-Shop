@@ -49,6 +49,10 @@ static_dir = os.path.join(BASE_DIR, "app", "static")
 templates_dir = os.path.join(BASE_DIR, "app", "templates")
 app.mount("/static", StaticFiles(directory=static_dir), name="static")
 
+frontend_dir = os.path.join(BASE_DIR, "frontend")
+if os.path.exists(frontend_dir):
+    app.mount("/frontend", StaticFiles(directory=frontend_dir, html=True), name="frontend")
+
 templates = Jinja2Templates(directory=templates_dir)
 
 # Đăng ký API Routers

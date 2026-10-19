@@ -82,3 +82,7 @@ class LoginHistoryResponse(BaseModel):
 
 class ToggleActiveRequest(BaseModel):
     is_active: bool
+
+class ChangePasswordRequest(BaseModel):
+    mat_khau_cu: str = Field(..., description="Mật khẩu hiện tại")
+    mat_khau_moi: str = Field(..., min_length=8, description="Mật khẩu mới (tối thiểu 8 ký tự, gồm cả chữ và số)")

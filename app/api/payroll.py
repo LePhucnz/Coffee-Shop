@@ -220,6 +220,22 @@ def update_settings(data: CauHinhLuongSchema, current_user: TaiKhoan = Depends(r
     return settings_response(db)
 
 
+@router.get("/holidays", response_model=List[NgayLeSchema])
+def list_holidays(current_user: TaiKhoan = Depends(require_roles(ADMIN_ROLES)), db: Session = Depends(get_db)):
+    """Danh sách các ngày lễ trong hệ thống"""
+    items = db.query(NgayLe).order_by(NgayLe.ngay).all()
+    return [NgayLeSchema(id=h.id, ngay=h.ngay, ten=h.ten, he_so=svc.num(h.he_so, 2.0)) for h in items]
+
+
+@router.get("/holidays/{holiday_id}", response_model=NgayLeSchema)
+def get_holiday(holiday_id: int, current_user: TaiKhoan = Depends(require_roles(ADMIN_ROLES)), db: Session = Depends(get_db)):
+    """Chi tiết một ngày lễ theo ID"""
+    h = db.query(NgayLe).filter(NgayLe.id == holiday_id).first()
+    if not h:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Không tìm thấy ngày lễ")
+    return NgayLeSchema(id=h.id, ngay=h.ngay, ten=h.ten, he_so=svc.num(h.he_so, 2.0))
+
+
 @router.post("/holidays", response_model=CauHinhLuongSchema, status_code=status.HTTP_201_CREATED)
 def add_holiday(data: NgayLeSchema, current_user: TaiKhoan = Depends(require_roles(ADMIN_ROLES)),
                 db: Session = Depends(get_db)):
@@ -227,6 +243,25 @@ def add_holiday(data: NgayLeSchema, current_user: TaiKhoan = Depends(require_rol
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Ngày này đã có trong danh sách ngày lễ")
     db.add(NgayLe(ngay=data.ngay, ten=data.ten.strip(), he_so=data.he_so))
     log(db, current_user, "them_ngay_le", f"{data.ngay:%d/%m/%Y} {data.ten} × {data.he_so}")
+    db.commit()
+    return settings_response(db)
+
+
+@router.put("/holidays/{holiday_id}", response_model=CauHinhLuongSchema)
+def update_holiday(holiday_id: int, data: NgayLeSchema, current_user: TaiKhoan = Depends(require_roles(ADMIN_ROLES)),
+                   db: Session = Depends(get_db)):
+    """Cập nhật thông tin ngày lễ"""
+    h = db.query(NgayLe).filter(NgayLe.id == holiday_id).first()
+    if not h:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Không tìm thấy ngày lễ")
+    if data.ngay != h.ngay:
+        exist = db.query(NgayLe).filter(NgayLe.ngay == data.ngay, NgayLe.id != holiday_id).first()
+        if exist:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Ngày này đã có trong danh sách ngày lễ")
+    h.ngay = data.ngay
+    h.ten = data.ten.strip()
+    h.he_so = data.he_so
+    log(db, current_user, "cap_nhat_ngay_le", f"{h.ngay:%d/%m/%Y} {h.ten} × {h.he_so}")
     db.commit()
     return settings_response(db)
 
@@ -241,6 +276,7 @@ def delete_holiday(holiday_id: int, current_user: TaiKhoan = Depends(require_rol
     db.delete(h)
     db.commit()
     return settings_response(db)
+
 
 
 # ---------- Kỳ lương (FR-12) ----------
@@ -327,6 +363,26 @@ def finalize(ky_id: int, data: ChotKyLuongRequest, current_user: TaiKhoan = Depe
 
 
 # ---------- Phiếu lương ----------
+
+@router.get("/payslips", response_model=List[PhieuLuongTomTat])
+def list_payslips(
+    ma_ky_luong: Optional[int] = Query(None, description="Lọc theo mã kỳ lương"),
+    ma_nv: Optional[int] = Query(None, description="Lọc theo mã nhân viên"),
+    trang_thai: Optional[str] = Query(None, description="Lọc theo trạng thái phiếu lương (nhap, da_chot)"),
+    current_user: TaiKhoan = Depends(require_roles(ADMIN_ROLES)),
+    db: Session = Depends(get_db)
+):
+    """FR-12/FR-13: Danh sách phiếu lương cho Quản lý / Quản trị viên tra cứu"""
+    q = db.query(PhieuLuong).join(KyLuong, PhieuLuong.ma_ky_luong == KyLuong.id)
+    if ma_ky_luong:
+        q = q.filter(PhieuLuong.ma_ky_luong == ma_ky_luong)
+    if ma_nv:
+        q = q.filter(PhieuLuong.ma_nv == ma_nv)
+    if trang_thai:
+        q = q.filter(PhieuLuong.trang_thai == trang_thai)
+    items = q.order_by(KyLuong.tu_ngay.desc(), PhieuLuong.id.desc()).all()
+    return [PhieuLuongTomTat(**map_payslip(p)) for p in items]
+
 
 @router.get("/payslips/me", response_model=List[PhieuLuongTomTat])
 def my_payslips(current_user: TaiKhoan = Depends(get_current_user), db: Session = Depends(get_db)):

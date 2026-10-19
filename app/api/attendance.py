@@ -890,6 +890,18 @@ def list_locked_periods(current_user: TaiKhoan = Depends(require_roles(ADMIN_ROL
              "nguoi_chot": names.get(k.nguoi_chot), "ghi_chu": k.ghi_chu} for k in items]
 
 
+@router.get("/periods/{ky_id}")
+def get_locked_period(ky_id: int, current_user: TaiKhoan = Depends(require_roles(ADMIN_ROLES)), db: Session = Depends(get_db)):
+    """Chi tiết kỳ công đã chốt theo ID"""
+    k = db.query(KyCongDaChot).filter(KyCongDaChot.id == ky_id).first()
+    if not k:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Không tìm thấy kỳ công đã chốt")
+    names = account_names(db, [k.nguoi_chot])
+    return {"id": k.id, "tu_ngay": k.tu_ngay, "den_ngay": k.den_ngay, "ngay_chot": k.ngay_chot,
+            "nguoi_chot": names.get(k.nguoi_chot), "ghi_chu": k.ghi_chu}
+
+
+
 @router.post("/periods/lock", status_code=status.HTTP_201_CREATED)
 def lock_period(data: ChotKyRequest, current_user: TaiKhoan = Depends(require_roles(ADMIN_ROLES)),
                 db: Session = Depends(get_db)):

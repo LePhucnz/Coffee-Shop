@@ -1,4 +1,6 @@
 // Trang Hồ sơ của tôi: nhân viên chỉ xem được hồ sơ và hợp đồng của chính mình
+let currentEmp = null;
+
 document.addEventListener("DOMContentLoaded", async () => {
     const user = API.getUser();
     if (!user) return;
@@ -7,18 +9,24 @@ document.addEventListener("DOMContentLoaded", async () => {
         return;
     }
 
+    await loadMyProfile();
+});
+
+async function loadMyProfile() {
+    const user = API.getUser();
     try {
         const [emp, contracts] = await Promise.all([
             API.request(`/api/employees/${user.ma_nv}`),
             API.request("/api/contracts")
         ]);
+        currentEmp = emp;
         renderProfile(emp);
         renderContracts(contracts.filter(c => c.ma_nhan_vien === user.ma_nv));
         document.getElementById("profile-content").classList.remove("hidden");
     } catch (err) {
         showToast(err.message, "error");
     }
-});
+}
 
 function renderProfile(emp) {
     const avatar = document.getElementById("pf-avatar");
@@ -63,3 +71,106 @@ function renderContracts(items) {
             <td class="py-3 px-5">${statusBadge(CONTRACT_STATUS, c.trang_thai)}</td>
         </tr>`).join("");
 }
+
+// Modal Đổi mật khẩu
+function openPasswordModal() {
+    const form = document.getElementById("form-change-password");
+    if (form) form.reset();
+    document.getElementById("password-modal").classList.remove("hidden");
+}
+
+function closePasswordModal() {
+    document.getElementById("password-modal").classList.add("hidden");
+}
+
+async function submitChangePassword(e) {
+    e.preventDefault();
+    const oldPass = document.getElementById("pw-old").value;
+    const newPass = document.getElementById("pw-new").value;
+    const confirmPass = document.getElementById("pw-confirm").value;
+
+    if (newPass !== confirmPass) {
+        showToast("Mật khẩu xác nhận không khớp", "error");
+        return;
+    }
+
+    const btn = document.getElementById("btn-save-pw");
+    btn.disabled = true;
+    try {
+        const res = await API.request("/api/auth/change-password", {
+            method: "POST",
+            body: { mat_khau_cu: oldPass, mat_khau_moi: newPass }
+        });
+        showToast(res.message || "Đổi mật khẩu thành công!");
+        closePasswordModal();
+    } catch (err) {
+        showToast(err.message, "error");
+    } finally {
+        btn.disabled = false;
+    }
+}
+
+// Modal Cập nhật thông tin liên hệ
+function openContactModal() {
+    if (!currentEmp) return;
+    document.getElementById("ct-phone").value = currentEmp.so_dien_thoai || "";
+    document.getElementById("ct-email").value = currentEmp.email || "";
+    document.getElementById("ct-address").value = currentEmp.dia_chi || "";
+    document.getElementById("ct-marital").value = currentEmp.tinh_trang_hon_nhan || "Độc thân";
+    document.getElementById("ct-dependents").value = currentEmp.so_nguoi_phu_thuoc ?? 0;
+    document.getElementById("contact-modal").classList.remove("hidden");
+}
+
+function closeContactModal() {
+    document.getElementById("contact-modal").classList.add("hidden");
+}
+
+async function submitContactUpdate(e) {
+    e.preventDefault();
+    const payload = {
+        so_dien_thoai: document.getElementById("ct-phone").value.trim() || null,
+        email: document.getElementById("ct-email").value.trim() || null,
+        dia_chi: document.getElementById("ct-address").value.trim() || null,
+        tinh_trang_hon_nhan: document.getElementById("ct-marital").value || null,
+        so_nguoi_phu_thuoc: parseInt(document.getElementById("ct-dependents").value, 10) || 0
+    };
+
+    const btn = document.getElementById("btn-save-contact");
+    btn.disabled = true;
+    try {
+        const updated = await API.request("/api/employees/me", {
+            method: "PUT",
+            body: payload
+        });
+        showToast("Cập nhật thông tin liên hệ thành công!");
+        closeContactModal();
+        currentEmp = { ...currentEmp, ...updated };
+        renderProfile(currentEmp);
+    } catch (err) {
+        showToast(err.message, "error");
+    } finally {
+        btn.disabled = false;
+    }
+}
+
+// Upload Avatar
+async function uploadMyAvatar(e) {
+    const file = e.target.files && e.target.files[0];
+    if (!file) return;
+    if (!currentEmp || !currentEmp.id) return;
+
+    try {
+        const res = await API.upload(`/api/employees/${currentEmp.id}/avatar`, file);
+        showToast("Cập nhật ảnh đại diện thành công!");
+        if (res.avatar_url) {
+            currentEmp.anh_dai_dien = res.avatar_url;
+            const avatarEl = document.getElementById("pf-avatar");
+            avatarEl.innerHTML = `<img src="${escapeHtml(res.avatar_url)}" alt="" class="w-full h-full object-cover">`;
+        }
+    } catch (err) {
+        showToast(err.message, "error");
+    } finally {
+        e.target.value = "";
+    }
+}
+

@@ -113,6 +113,42 @@ def update_shift_type(
     return map_loai_ca(lc)
 
 
+@router.get("/types/{type_id}", response_model=LoaiCaResponse)
+def get_shift_type(
+    type_id: int,
+    current_user: TaiKhoan = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Lấy chi tiết một loại ca theo ID"""
+    lc = db.query(LoaiCa).filter(LoaiCa.id == type_id).first()
+    if not lc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Không tìm thấy loại ca")
+    return map_loai_ca(lc)
+
+
+@router.delete("/types/{type_id}")
+def delete_shift_type(
+    type_id: int,
+    current_user: TaiKhoan = Depends(require_roles(ADMIN_ROLES)),
+    db: Session = Depends(get_db)
+):
+    """FR-08: Xóa hoặc ngừng hoạt động loại ca (Admin/Manager)"""
+    lc = db.query(LoaiCa).filter(LoaiCa.id == type_id).first()
+    if not lc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Không tìm thấy loại ca")
+
+    has_assignments = db.query(PhanCongCa).filter(PhanCongCa.ma_ca == type_id).first()
+    if has_assignments:
+        lc.trang_thai = False
+        db.commit()
+        return {"message": f"Loại ca '{lc.ten_ca}' đã được phân công nên được chuyển sang trạng thái Ngừng hoạt động"}
+
+    db.delete(lc)
+    db.commit()
+    return {"message": f"Đã xóa loại ca '{lc.ten_ca}' thành công"}
+
+
+
 # ---------- Đăng ký nguyện vọng (FR-07) ----------
 
 def build_registration_response(db: Session, nv_id: int, start: date) -> DangKyTuanResponse:
@@ -615,6 +651,36 @@ def update_assignment(
     pc.theo_nguyen_vong = svc.is_preferred(db, new_nv_id, new_ca_id, new_ngay)
     db.commit()
     return build_schedule(db, start_new)
+
+
+@router.get("/assignments/{assignment_id}", response_model=PhanCongResponse)
+def get_assignment_detail(
+    assignment_id: int,
+    current_user: TaiKhoan = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Chi tiết phân công ca làm việc theo ID"""
+    pc = db.query(PhanCongCa).filter(PhanCongCa.id == assignment_id).first()
+    if not pc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Không tìm thấy phân công ca")
+
+    role_name = current_user.vai_tro.ten_vai_tro if current_user.vai_tro else "Staff"
+    if role_name not in ADMIN_ROLES and pc.ma_nv != current_user.ma_nv:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Không có quyền xem phân công ca này")
+
+    nv = pc.nhan_vien
+    lc = pc.loai_ca
+    return PhanCongResponse(
+        id=pc.id,
+        ma_nv=pc.ma_nv,
+        ho_ten=nv.ho_ten if nv else None,
+        ma_nhan_vien=nv.ma_nhan_vien if nv else None,
+        ma_ca=pc.ma_ca,
+        ngay_lam=pc.ngay_lam,
+        so_gio=svc.shift_hours(lc) if lc else 0,
+        theo_nguyen_vong=bool(pc.theo_nguyen_vong),
+        xung_dot=[]
+    )
 
 
 @router.delete("/assignments/{assignment_id}", response_model=BangXepCaResponse)

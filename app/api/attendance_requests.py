@@ -272,6 +272,23 @@ def cancel_request(request_id: int, current_user: TaiKhoan = Depends(get_current
     return map_request(db, yc)
 
 
+@router.delete("/{request_id}")
+def delete_request(request_id: int, current_user: TaiKhoan = Depends(get_current_user), db: Session = Depends(get_db)):
+    """Xóa yêu cầu chấm công (Admin/Manager hoặc người tạo với yêu cầu đã hủy/từ chối)"""
+    yc = get_request(db, request_id)
+    role_name = current_user.vai_tro.ten_vai_tro if current_user.vai_tro else "Staff"
+    is_admin = role_name in ADMIN_ROLES
+    is_owner = (yc.ma_tai_khoan == current_user.id or yc.ma_nv == current_user.ma_nv)
+    if not is_admin and not is_owner:
+        forbid(db, current_user, "Bạn không có quyền xóa yêu cầu này")
+    if not is_admin and yc.trang_thai in ["cho_duyet", "da_duyet"]:
+        bad("Chỉ có thể xóa yêu cầu đã hủy hoặc từ chối. Hãy hủy yêu cầu trước khi xóa.")
+    db.delete(yc)
+    db.commit()
+    return {"message": "Đã xóa yêu cầu thành công"}
+
+
+
 @router.post("/{request_id}/files", response_model=YeuCauResponse)
 def upload_evidence(request_id: int, file: UploadFile = File(...), current_user: TaiKhoan = Depends(get_current_user),
                     db: Session = Depends(get_db)):
