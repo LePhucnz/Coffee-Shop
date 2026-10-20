@@ -9,13 +9,20 @@ import unicodedata
 from datetime import datetime
 from typing import List, Optional, Sequence, Tuple
 
-from reportlab.lib import colors
-from reportlab.lib.pagesizes import A4, landscape
-from reportlab.lib.styles import ParagraphStyle
-from reportlab.lib.units import mm
-from reportlab.pdfbase import pdfmetrics
-from reportlab.pdfbase.ttfonts import TTFont
-from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
+try:
+    from reportlab.lib import colors
+    from reportlab.lib.pagesizes import A4, landscape
+    from reportlab.lib.styles import ParagraphStyle
+    from reportlab.lib.units import mm
+    from reportlab.pdfbase import pdfmetrics
+    from reportlab.pdfbase.ttfonts import TTFont
+    from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
+    HAS_REPORTLAB = True
+except ImportError:
+    HAS_REPORTLAB = False
+    colors = None
+    A4 = landscape = ParagraphStyle = mm = pdfmetrics = TTFont = None
+    Paragraph = SimpleDocTemplate = Spacer = Table = TableStyle = None
 
 FONT_CANDIDATES = [
     (os.getenv("PDF_FONT_PATH", ""), os.getenv("PDF_FONT_BOLD_PATH", "")),
@@ -29,9 +36,9 @@ FONT_CANDIDATES = [
     ("/usr/share/fonts/TTF/DejaVuSans.ttf", "/usr/share/fonts/TTF/DejaVuSans-Bold.ttf"),
 ]
 
-BRAND = colors.HexColor("#cf6800")
-HEAD_BG = colors.HexColor("#eee7db")
-LINE = colors.HexColor("#e6dfd5")
+BRAND = colors.HexColor("#cf6800") if HAS_REPORTLAB else None
+HEAD_BG = colors.HexColor("#eee7db") if HAS_REPORTLAB else None
+LINE = colors.HexColor("#e6dfd5") if HAS_REPORTLAB else None
 
 _fonts: Optional[Tuple[str, str, bool]] = None
 
@@ -40,6 +47,9 @@ def _register_fonts() -> Tuple[str, str, bool]:
     """Trả về (font thường, font đậm, có hỗ trợ tiếng Việt hay không)"""
     global _fonts
     if _fonts:
+        return _fonts
+    if not HAS_REPORTLAB:
+        _fonts = ("Helvetica", "Helvetica-Bold", False)
         return _fonts
     for regular, bold in FONT_CANDIDATES:
         if regular and os.path.isfile(regular):
@@ -68,6 +78,12 @@ def build_pdf(title: str, subtitle: str, info: Sequence[Tuple[str, str]],
     tables: mỗi bảng {"tieu_de": str, "header": [...], "rows": [[...]], "widths": [mm...] (tùy chọn),
                       "align_right": [chỉ số cột canh phải], "bold_last": bool}
     """
+    if not HAS_REPORTLAB:
+        from fastapi import HTTPException, status
+        raise HTTPException(
+            status_code=status.HTTP_501_NOT_IMPLEMENTED,
+            detail="Tính năng xuất PDF yêu cầu thư viện 'reportlab'. Vui lòng cài đặt: pip install reportlab"
+        )
     regular, bold, unicode_ok = _register_fonts()
     t = lambda v: _text(v, unicode_ok)
     buf = io.BytesIO()
