@@ -3,6 +3,31 @@ from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
+# Tự động nạp biến môi trường từ file .env (nếu có)
+try:
+    from dotenv import load_dotenv
+    load_dotenv(BASE_DIR / ".env")
+except ImportError:
+    env_path = BASE_DIR / ".env"
+    if env_path.exists():
+        for line in env_path.read_text(encoding="utf-8").splitlines():
+            line = line.strip()
+            if line and not line.startswith("#") and "=" in line:
+                k, v = line.split("=", 1)
+                os.environ.setdefault(k.strip(), v.strip().strip('"').strip("'"))
+
+
+def _resolve_database_url() -> str:
+    raw_url = os.getenv("DATABASE_URL", f"sqlite:///{BASE_DIR / 'qlcl.db'}").strip()
+    if raw_url.startswith("postgres://"):
+        raw_url = raw_url.replace("postgres://", "postgresql://", 1)
+    if raw_url.startswith("postgresql://"):
+        try:
+            import psycopg  # noqa: F401
+        except ImportError:
+            raw_url = raw_url.replace("postgresql://", "postgresql+psycopg2://", 1)
+    return raw_url
+
 class Settings:
     PROJECT_NAME: str = "Hệ thống Quản lý Nhân sự & Ca làm - Coffee Shop"
     VERSION: str = "1.0.0"
@@ -59,6 +84,6 @@ class Settings:
     }
 
     # Database
-    DATABASE_URL: str = os.getenv("DATABASE_URL", f"sqlite:///{BASE_DIR / 'qlcl.db'}")
+    DATABASE_URL: str = _resolve_database_url()
 
 settings = Settings()

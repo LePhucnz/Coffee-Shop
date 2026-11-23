@@ -36,13 +36,40 @@ def migrate_stores(db: Session):
         db.rollback()
 
 
+def sync_postgres_sequences(db: Session):
+    """
+    Đồng bộ lại bộ đếm tự tăng (SERIAL SEQUENCE) trên PostgreSQL
+    sau khi chèn dữ liệu mẫu có gán cứng id=1, 2, 3...
+    """
+    from sqlalchemy import text
+    from app.database import Base
+
+    bind = db.get_bind()
+    if bind.dialect.name != "postgresql":
+        return
+
+    try:
+        for table in Base.metadata.sorted_tables:
+            if "id" in table.c:
+                db.execute(text(
+                    f"SELECT setval(pg_get_serial_sequence('{table.name}', 'id'), "
+                    f"COALESCE((SELECT MAX(id) FROM {table.name}), 1), "
+                    f"(SELECT COUNT(*) > 0 FROM {table.name}));"
+                ))
+        db.commit()
+    except Exception:
+        db.rollback()
+
+
 def seed_database(db: Session):
     """Nạp dữ liệu mẫu ban đầu nếu cơ sở dữ liệu trống"""
     if db.query(VaiTro).first():
+        sync_postgres_sequences(db)
         migrate_stores(db)
         seed_shift_types(db)
         seed_sprint5(db)
         seed_sprint6(db)
+        sync_postgres_sequences(db)
         return  # Đã có dữ liệu, không nạp lại
 
     # 1. Vai trò (Roles)
@@ -229,9 +256,11 @@ def seed_database(db: Session):
     db.add_all(hop_dong_data)
     db.commit()
 
+    sync_postgres_sequences(db)
     seed_shift_types(db)
     seed_sprint5(db)
     seed_sprint6(db)
+    sync_postgres_sequences(db)
 
 
 # Sprint 4: tên ca, khung giờ và số nhân viên tối thiểu/tối đa cho các loại ca mẫu

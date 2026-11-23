@@ -3,13 +3,19 @@ from sqlalchemy.orm import declarative_base, sessionmaker
 from app.config import settings
 
 connect_args = {}
+engine_kwargs = {"echo": False}
+
 if settings.DATABASE_URL.startswith("sqlite"):
     connect_args = {"check_same_thread": False}
+else:
+    # Giữ kết nối ổn định với Cloud PostgreSQL (Neon, Supabase, Enzonic...)
+    engine_kwargs["pool_pre_ping"] = True
+    engine_kwargs["pool_recycle"] = 300
 
 engine = create_engine(
     settings.DATABASE_URL,
     connect_args=connect_args,
-    echo=False
+    **engine_kwargs
 )
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
