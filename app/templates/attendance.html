@@ -1,0 +1,141 @@
+{% extends "_layout.html" %}
+
+{% block content %}
+<!-- Header -->
+<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-[#f0e9df]">
+    <div>
+        <h1 class="text-3xl font-extrabold text-[#18181b] tracking-tight">Chấm công</h1>
+        <p class="text-sm text-[#71717a] mt-1 font-medium">Tính giờ tự động bằng định vị GPS</p>
+    </div>
+    <div class="flex flex-wrap gap-2 self-start">
+        <a href="/attendance-history" class="btn-outline-brand text-center">Lịch sử công &amp; yêu cầu</a>
+        <a href="/attendance-manage" class="admin-only btn-outline-brand text-center">Quản lý chấm công</a>
+        <button type="button" onclick="startTourIfFirstTime(true)" class="btn-outline-brand">Hướng dẫn</button>
+    </div>
+</div>
+
+<div id="no-profile" class="hidden dash-card p-6 mt-6 text-sm text-[#52525b]">
+    Tài khoản của bạn chưa liên kết với hồ sơ nhân viên nên chưa có ca để chấm công.
+</div>
+
+<div id="today-notice" class="hidden mt-6 rounded-xl bg-amber-50 border border-amber-200 px-4 py-3 text-sm font-medium text-amber-800"></div>
+
+<div id="attendance-body" class="grid grid-cols-1 lg:grid-cols-5 gap-6 mt-6">
+    <!-- Cột trái: ca hôm nay + nút chấm công (FR-10) -->
+    <div class="lg:col-span-3 space-y-4">
+        <div id="shift-tabs" class="hidden flex flex-wrap gap-2"></div>
+
+        <div class="dash-card p-5 bg-[#faf6f0]">
+            <div class="text-[11px] font-bold uppercase tracking-wider text-[#71717a]">Ca hôm nay của bạn</div>
+            <div id="shift-title" class="text-lg font-extrabold mt-1">Đang tải...</div>
+            <div id="shift-status" class="mt-2"></div>
+        </div>
+
+        <div class="dash-card p-6 text-center">
+            <div id="clock" class="text-6xl sm:text-7xl font-extrabold tracking-tight tabular-nums">--:--</div>
+            <div id="clock-date" class="text-sm text-[#71717a] mt-2"></div>
+            <div id="gps-badge" class="inline-flex items-center gap-2 mt-4 px-3 py-1.5 rounded-full text-xs font-bold bg-stone-100 text-stone-600">
+                <span class="w-2 h-2 rounded-full bg-current"></span><span id="gps-text">Đang lấy vị trí GPS...</span>
+            </div>
+
+            <button type="button" id="btn-check" class="btn-primary w-full mt-5 py-4 text-lg disabled:opacity-50 disabled:cursor-not-allowed" disabled>
+                Bắt đầu Check-in vào ca
+            </button>
+            <p id="check-hint" class="text-xs text-[#71717a] mt-3"></p>
+            <a id="request-link" href="/attendance-history" class="hidden inline-block mt-2 text-xs font-bold text-[#cf6800] hover:underline">Quên chấm công? Gửi yêu cầu bù/sửa công</a>
+
+            <!-- Kết quả sau khi chấm công -->
+            <div id="check-result" class="hidden mt-4 grid grid-cols-2 gap-3 text-left text-sm">
+                <div class="rounded-xl bg-[#faf6f0] p-3">
+                    <div class="text-[11px] font-bold uppercase text-[#71717a]">Giờ vào</div>
+                    <div id="res-in" class="text-lg font-extrabold">--:--</div>
+                </div>
+                <div class="rounded-xl bg-[#faf6f0] p-3">
+                    <div class="text-[11px] font-bold uppercase text-[#71717a]">Giờ ra</div>
+                    <div id="res-out" class="text-lg font-extrabold">--:--</div>
+                </div>
+                <div id="res-labels" class="col-span-2 flex flex-wrap gap-2"></div>
+            </div>
+        </div>
+
+        <div class="dash-card p-5">
+            <h2 class="text-xs font-bold uppercase tracking-wider text-[#52525b] mb-3">Quy tắc &amp; chỉ dẫn</h2>
+            <ul class="space-y-2 text-sm text-[#52525b] list-disc pl-5 marker:text-[#cf6800]">
+                <li>Nút Check-in mở trước giờ vào ca <strong id="rule-open">15</strong> phút.</li>
+                <li>Vào trễ quá <strong id="rule-grace">5</strong> phút ân hạn sẽ bị ghi Đi trễ. Check-out trước giờ kết thúc ca là Về sớm.</li>
+                <li>Không lấy được GPS hoặc ở ngoài bán kính <strong id="rule-radius">200</strong> m quanh quán: hệ thống vẫn ghi nhận nhưng gắn cờ để Quản lý xem xét.</li>
+                <li>Nhớ Check-out khi hết ca. Quên Check-out quá 2 giờ, ca bị đánh dấu "Chưa check-out" và chưa được tính công.</li>
+                <li>Quên chấm công: gửi yêu cầu bù/sửa công trong 48 giờ sau khi hết ca. <a href="/attendance-help" class="font-semibold text-[#cf6800] hover:underline">Xem hướng dẫn</a></li>
+                <li>Giờ chấm công lấy theo giờ máy chủ của quán, không theo giờ điện thoại.</li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- Cột phải: lịch sử chấm công cá nhân (FR-11) -->
+    <div class="lg:col-span-2 space-y-4">
+        <div class="grid grid-cols-3 gap-3">
+            <div class="dash-card p-4">
+                <div class="text-[11px] font-bold uppercase text-[#71717a]">Giờ làm</div>
+                <div id="stat-hours" class="text-xl font-extrabold mt-1">-</div>
+            </div>
+            <div class="dash-card p-4">
+                <div class="text-[11px] font-bold uppercase text-amber-700">Đi trễ</div>
+                <div id="stat-late" class="text-xl font-extrabold text-amber-700 mt-1">-</div>
+            </div>
+            <div class="dash-card p-4">
+                <div class="text-[11px] font-bold uppercase text-[#dc2626]">Vắng</div>
+                <div id="stat-absent" class="text-xl font-extrabold text-[#dc2626] mt-1">-</div>
+            </div>
+        </div>
+
+        <div class="dash-card p-5">
+            <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
+                <h2 class="text-xs font-bold uppercase tracking-wider text-[#52525b]">Lịch sử chấm công gần đây</h2>
+                <a href="/attendance-history" class="text-xs font-bold text-[#cf6800] hover:underline">Xem tất cả</a>
+                <select id="history-range" class="form-input !w-auto !py-1.5 text-xs">
+                    <option value="7">7 ngày qua</option>
+                    <option value="30">30 ngày qua</option>
+                    <option value="month">Tháng này</option>
+                </select>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="w-full text-sm">
+                    <thead>
+                        <tr class="bg-[#eee7db]/80 text-xs font-bold text-[#52525b] text-left">
+                            <th class="py-2 px-2 rounded-l-lg">Ngày</th>
+                            <th class="py-2 px-2">Ca</th>
+                            <th class="py-2 px-2">Vào</th>
+                            <th class="py-2 px-2">Ra</th>
+                            <th class="py-2 px-2 rounded-r-lg">TT</th>
+                        </tr>
+                    </thead>
+                    <tbody id="history-body" class="divide-y divide-[#f5efe6]">
+                        <tr><td colspan="5" class="py-6 text-center text-[#71717a]">Đang tải...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- FR-11C: hướng dẫn nhanh lần đầu -->
+<div id="tour-modal" class="hidden fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl shadow-xl w-full max-w-md p-6">
+        <div class="flex items-center justify-between">
+            <span class="text-[11px] font-bold uppercase tracking-wider text-[#cf6800]">Hướng dẫn chấm công</span>
+            <span id="tour-progress" class="text-xs text-[#71717a]"></span>
+        </div>
+        <h3 id="tour-title" class="text-lg font-extrabold mt-2"></h3>
+        <p id="tour-text" class="text-sm text-[#52525b] mt-2"></p>
+        <div class="flex justify-between gap-3 mt-6">
+            <button type="button" onclick="finishTour()" class="text-sm font-semibold text-[#71717a] hover:underline">Bỏ qua</button>
+            <button type="button" id="tour-next" onclick="nextTourStep()" class="btn-primary px-5">Tiếp</button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/js/attendance-common.js"></script>
+<script src="/static/js/attendance.js"></script>
+{% endblock %}

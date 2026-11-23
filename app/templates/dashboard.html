@@ -1,0 +1,184 @@
+{% extends "_layout.html" %}
+
+{% block content %}
+    <!-- Top Header -->
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-[#f0e9df]">
+        <div>
+            <h1 class="text-3xl font-extrabold text-[#18181b] tracking-tight">Tổng quan quán</h1>
+            <p id="current-date-label" class="text-sm text-[#71717a] mt-1 font-medium">
+                Hôm nay, Thứ Hai 15 tháng 06, 2026
+            </p>
+        </div>
+        <div>
+            <span class="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-white border border-[#e5e0d8] text-xs font-semibold text-[#18181b] shadow-sm">
+                <span class="w-2 h-2 rounded-full bg-[#16a34a] animate-pulse"></span>
+                Ca sáng trực tuyến
+            </span>
+        </div>
+    </div>
+
+    <!-- Cảnh báo hợp đồng sắp hết hạn (FR-05), chỉ hiện với Admin/Manager -->
+    <a id="expiring-banner" href="/contracts" class="hidden mt-6 flex items-center justify-between gap-4 dash-card-alert p-5 hover:shadow-md transition-shadow">
+        <span class="text-sm font-bold text-[#dc2626]">⚠ <span id="expiring-banner-count">0</span> hợp đồng lao động sắp hết hạn trong 30 ngày tới</span>
+        <span class="text-sm font-semibold text-[#dc2626] whitespace-nowrap">Xem chi tiết →</span>
+    </a>
+
+    <!-- 3 Stats Cards -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mt-6">
+        <!-- Stat 1: Nhân viên -->
+        <div class="dash-card p-6">
+            <span class="text-xs font-bold text-[#71717a] uppercase tracking-wider block">
+                NHÂN VIÊN
+            </span>
+            <div class="text-3xl font-extrabold text-[#18181b] mt-2 tracking-tight">
+                <span id="stat-employees">-</span> NV
+            </div>
+        </div>
+
+        <!-- Stat 2: Ca làm hôm nay -->
+        <div class="dash-card p-6">
+            <span class="text-xs font-bold text-[#71717a] uppercase tracking-wider block">
+                CA LÀM HÔM NAY
+            </span>
+            <div class="text-3xl font-extrabold text-[#18181b] mt-2 tracking-tight">
+                <span id="stat-shifts-today">-</span> Ca
+            </div>
+        </div>
+
+        <!-- Stat 3: Thiếu nhân sự (Alert Card) -->
+        <div class="dash-card-alert p-6">
+            <span class="text-xs font-bold text-[#dc2626] uppercase tracking-wider block">
+                THIẾU NHÂN SỰ
+            </span>
+            <div class="text-3xl font-extrabold text-[#dc2626] mt-2 tracking-tight">
+                <span id="stat-understaffed">-</span> Thiếu ca
+            </div>
+        </div>
+    </div>
+
+    <!-- Middle Card: Bar Chart (Xu hướng giờ làm 30 ngày gần nhất) -->
+    <div class="dash-card p-7 mt-6 relative">
+        <div class="flex items-center justify-between mb-6">
+            <h2 class="text-base font-bold text-[#18181b]">
+                Xu hướng giờ làm (30 ngày gần nhất)
+            </h2>
+            <!-- Interactive tooltip preview -->
+            <div id="chart-tooltip" class="text-xs font-medium text-[#cf6800] bg-amber-50 border border-amber-200 px-3 py-1 rounded-lg opacity-0 transition-opacity">
+                -
+            </div>
+        </div>
+
+        <!-- 12 Bars Container -->
+        <div class="h-64 flex items-end justify-between gap-2 sm:gap-4 pt-4 border-b border-[#f0e9df]">
+            <!-- T1 -->
+            <div class="chart-bar-container">
+                <div class="chart-bar" style="height: 45%;" data-label="1" data-hours="112"></div>
+                <span class="text-xs text-[#71717a] font-medium">T1</span>
+            </div>
+            <!-- T2 -->
+            <div class="chart-bar-container">
+                <div class="chart-bar" style="height: 55%;" data-label="2" data-hours="128"></div>
+                <span class="text-xs text-[#71717a] font-medium">T2</span>
+            </div>
+            <!-- T3 -->
+            <div class="chart-bar-container">
+                <div class="chart-bar" style="height: 65%;" data-label="3" data-hours="142"></div>
+                <span class="text-xs text-[#71717a] font-medium">T3</span>
+            </div>
+            <!-- T4 -->
+            <div class="chart-bar-container">
+                <div class="chart-bar" style="height: 50%;" data-label="4" data-hours="120"></div>
+                <span class="text-xs text-[#71717a] font-medium">T4</span>
+            </div>
+            <!-- T5 -->
+            <div class="chart-bar-container">
+                <div class="chart-bar" style="height: 75%;" data-label="5" data-hours="160"></div>
+                <span class="text-xs text-[#71717a] font-medium">T5</span>
+            </div>
+            <!-- T6 -->
+            <div class="chart-bar-container">
+                <div class="chart-bar" style="height: 80%;" data-label="6" data-hours="175"></div>
+                <span class="text-xs text-[#71717a] font-medium">T6</span>
+            </div>
+            <!-- T7 -->
+            <div class="chart-bar-container">
+                <div class="chart-bar" style="height: 70%;" data-label="7" data-hours="155"></div>
+                <span class="text-xs text-[#71717a] font-medium">T7</span>
+            </div>
+            <!-- T8 -->
+            <div class="chart-bar-container">
+                <div class="chart-bar" style="height: 60%;" data-label="8" data-hours="138"></div>
+                <span class="text-xs text-[#71717a] font-medium">T8</span>
+            </div>
+            <!-- T9 -->
+            <div class="chart-bar-container">
+                <div class="chart-bar" style="height: 82%;" data-label="9" data-hours="178"></div>
+                <span class="text-xs text-[#71717a] font-medium">T9</span>
+            </div>
+            <!-- T10 -->
+            <div class="chart-bar-container">
+                <div class="chart-bar" style="height: 88%;" data-label="10" data-hours="192"></div>
+                <span class="text-xs text-[#71717a] font-medium">T10</span>
+            </div>
+            <!-- T11 -->
+            <div class="chart-bar-container">
+                <div class="chart-bar" style="height: 78%;" data-label="11" data-hours="168"></div>
+                <span class="text-xs text-[#71717a] font-medium">T11</span>
+            </div>
+            <!-- T12 -->
+            <div class="chart-bar-container">
+                <div class="chart-bar" style="height: 85%;" data-label="12" data-hours="185"></div>
+                <span class="text-xs text-[#71717a] font-medium">T12</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bottom Card: Lịch trình hôm nay -->
+    <div class="dash-card p-7 mt-6">
+        <h2 class="text-base font-bold text-[#18181b] mb-4">
+            Lịch trình hôm nay
+        </h2>
+
+        <div class="w-full overflow-x-auto">
+            <table class="w-full text-left border-collapse">
+                <thead>
+                    <tr class="bg-[#eee7db]/80 text-xs font-bold text-[#52525b] rounded-xl overflow-hidden">
+                        <th class="py-3 px-5 rounded-l-xl">Nhân viên</th>
+                        <th class="py-3 px-5">Ca</th>
+                        <th class="py-3 px-5 text-right rounded-r-xl">Trạng thái</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-[#f5efe6] text-sm">
+                    <!-- Row 1 -->
+                    <tr class="hover:bg-[#faf7f2] transition-colors">
+                        <td class="py-3.5 px-5 font-semibold text-[#18181b]">Nguyễn Văn A</td>
+                        <td class="py-3.5 px-5 text-[#52525b]">Ca Sáng (06:00 - 14:00)</td>
+                        <td class="py-3.5 px-5 text-right">
+                            <span class="badge-status-working">Đang làm</span>
+                        </td>
+                    </tr>
+                    <!-- Row 2 -->
+                    <tr class="hover:bg-[#faf7f2] transition-colors">
+                        <td class="py-3.5 px-5 font-semibold text-[#18181b]">Trần Thị B</td>
+                        <td class="py-3.5 px-5 text-[#52525b]">Ca Chiều (14:00 - 22:00)</td>
+                        <td class="py-3.5 px-5 text-right">
+                            <span class="badge-status-waiting">Chưa vào</span>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Quick Shortcuts Row -->
+    <div class="mt-8 flex flex-wrap items-center gap-3">
+        <span class="text-sm font-bold text-[#18181b] mr-2">Lối tắt nhanh:</span>
+        <a href="#report-detail" class="btn-outline-brand shortcut-btn">Báo cáo chi tiết</a>
+        <a href="#timesheet" class="btn-outline-brand shortcut-btn">Xem bảng công</a>
+        <a href="/payroll" class="btn-outline-brand shortcut-btn admin-only">Tính lương tháng</a>
+    </div>
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/js/dashboard.js"></script>
+{% endblock %}

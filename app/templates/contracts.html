@@ -1,0 +1,127 @@
+{% extends "_layout.html" %}
+
+{% block content %}
+<!-- Header -->
+<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-[#f0e9df]">
+    <div>
+        <h1 class="text-3xl font-extrabold text-[#18181b] tracking-tight">Hợp đồng lao động</h1>
+        <p class="text-sm text-[#71717a] mt-1 font-medium">Quản lý hợp đồng của từng nhân viên và cảnh báo hợp đồng sắp hết hạn</p>
+    </div>
+    <button type="button" onclick="openContractModal()" class="btn-primary px-5">+ Thêm hợp đồng</button>
+</div>
+
+<!-- Cảnh báo hợp đồng sắp hết hạn (FR-05) -->
+<div id="expiring-box" class="hidden dash-card-alert p-5 mt-6">
+    <div class="flex items-center justify-between gap-4 mb-3">
+        <h2 class="text-sm font-bold text-[#dc2626] uppercase tracking-wider">⚠ Hợp đồng sắp hết hạn trong 30 ngày</h2>
+        <span id="expiring-count" class="text-xs font-bold text-[#dc2626]"></span>
+    </div>
+    <ul id="expiring-list" class="space-y-1.5 text-sm"></ul>
+</div>
+
+<!-- Bộ lọc -->
+<div class="dash-card p-4 mt-6 flex flex-col lg:flex-row gap-3 lg:items-center">
+    <div class="flex-1">
+        <select id="filter-employee" class="form-input">
+            <option value="">Tất cả nhân viên</option>
+        </select>
+    </div>
+    <div class="lg:w-52">
+        <select id="filter-type" class="form-input">
+            <option value="">Tất cả loại hợp đồng</option>
+        </select>
+    </div>
+    <div class="lg:w-48">
+        <select id="filter-status" class="form-input">
+            <option value="">Tất cả trạng thái</option>
+            <option value="hieu_luc">Hiệu lực</option>
+            <option value="het_han">Hết hạn</option>
+            <option value="da_huy">Đã hủy</option>
+        </select>
+    </div>
+</div>
+
+<!-- Bảng hợp đồng -->
+<div class="dash-card p-0 mt-6 overflow-hidden">
+    <div class="overflow-x-auto">
+        <table class="w-full text-left border-collapse">
+            <thead>
+                <tr class="bg-[#eee7db]/80 text-xs font-bold text-[#52525b]">
+                    <th class="py-3 px-5">Nhân viên</th>
+                    <th class="py-3 px-5">Loại hợp đồng</th>
+                    <th class="py-3 px-5">Thời hạn</th>
+                    <th class="py-3 px-5 text-right">Mức lương</th>
+                    <th class="py-3 px-5">File</th>
+                    <th class="py-3 px-5">Trạng thái</th>
+                    <th class="py-3 px-5 text-right">Thao tác</th>
+                </tr>
+            </thead>
+            <tbody id="contracts-tbody" class="divide-y divide-[#f5efe6] text-sm">
+                <tr><td colspan="7" class="py-10 text-center text-[#71717a]">Đang tải dữ liệu...</td></tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Modal thêm / sửa hợp đồng -->
+<div id="contract-modal" class="hidden fixed inset-0 z-50 bg-black/50 flex items-start justify-center p-4 overflow-y-auto">
+    <div class="bg-white rounded-2xl shadow-2xl max-w-2xl w-full p-6 my-8 fade-in">
+        <div class="flex items-center justify-between pb-4 mb-4 border-b border-[#f0e9df]">
+            <h3 id="contract-modal-title" class="text-lg font-bold">Thêm hợp đồng</h3>
+            <button type="button" onclick="closeContractModal()" class="text-2xl leading-none text-[#71717a] hover:text-black">&times;</button>
+        </div>
+
+        <form id="contract-form" class="space-y-4">
+            <input type="hidden" id="ct-id">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div class="sm:col-span-2">
+                    <label class="block text-xs font-bold text-[#52525b] mb-1" for="ct-employee">Nhân viên <span class="text-red-500">*</span></label>
+                    <select id="ct-employee" required class="form-input"></select>
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-[#52525b] mb-1" for="ct-type">Loại hợp đồng <span class="text-red-500">*</span></label>
+                    <select id="ct-type" required class="form-input"></select>
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-[#52525b] mb-1" for="ct-status">Trạng thái</label>
+                    <select id="ct-status" class="form-input">
+                        <option value="hieu_luc">Hiệu lực</option>
+                        <option value="het_han">Hết hạn</option>
+                        <option value="da_huy">Đã hủy</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-[#52525b] mb-1" for="ct-start">Ngày bắt đầu</label>
+                    <input type="date" id="ct-start" class="form-input">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-[#52525b] mb-1" for="ct-end">Ngày kết thúc</label>
+                    <input type="date" id="ct-end" class="form-input">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-[#52525b] mb-1" for="ct-salary">Mức lương (VNĐ / giờ hoặc / ca)</label>
+                    <input type="number" id="ct-salary" min="0" step="1000" class="form-input">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-[#52525b] mb-1" for="ct-salary-code">Mã bảng lương</label>
+                    <input type="text" id="ct-salary-code" class="form-input">
+                </div>
+                <div class="sm:col-span-2">
+                    <label class="block text-xs font-bold text-[#52525b] mb-1" for="ct-file">File hợp đồng (PDF hoặc ảnh scan, tối đa 5MB)</label>
+                    <input type="file" id="ct-file" accept=".pdf,.jpg,.jpeg,.png" class="text-sm">
+                    <div id="ct-current-file" class="text-xs text-[#71717a] mt-1"></div>
+                </div>
+            </div>
+
+            <div class="flex justify-end gap-3 pt-2">
+                <button type="button" onclick="closeContractModal()" class="btn-outline-brand">Hủy</button>
+                <button type="submit" id="ct-submit" class="btn-primary px-6">Lưu hợp đồng</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/js/contracts.js"></script>
+{% endblock %}

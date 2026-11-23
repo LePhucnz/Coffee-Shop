@@ -1,0 +1,107 @@
+{% extends "_layout.html" %}
+
+{% block content %}
+<!-- Sprint 6: Cài đặt lương - hệ số ca, ngày lễ, chính sách phạt và thưởng (FR-12) -->
+<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-[#f0e9df]">
+    <div>
+        <h1 class="text-3xl font-extrabold text-[#18181b] tracking-tight">Cài đặt lương</h1>
+        <p class="text-sm text-[#71717a] mt-1 font-medium">Áp dụng từ lần tính lương kế tiếp. Kỳ lương đã chốt giữ nguyên số liệu.</p>
+    </div>
+    <a href="/payroll" class="btn-outline-brand self-start">Quay lại Tính lương</a>
+</div>
+
+<form id="settings-form" class="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
+    <div class="dash-card p-5 space-y-3">
+        <h2 class="font-bold">Đơn giá giờ</h2>
+        <label class="block text-xs font-bold text-[#52525b]">Số giờ chuẩn một tháng
+            <input type="number" min="1" max="400" name="gio_chuan_thang" class="form-input mt-1">
+        </label>
+        <label class="block text-xs font-bold text-[#52525b]">Mức lương hợp đồng từ mức này trở lên là lương tháng (đồng)
+            <input type="number" min="0" step="1000" name="nguong_luong_thang" class="form-input mt-1">
+        </label>
+        <p id="rate-example" class="text-[11px] text-[#71717a]"></p>
+    </div>
+
+    <div class="dash-card p-5 space-y-3">
+        <h2 class="font-bold">Phạt đi trễ / về sớm</h2>
+        <div class="flex gap-2 text-sm font-bold">
+            <label class="flex-1 flex items-center gap-2 rounded-xl border border-[#e6dfd5] px-3 py-2 cursor-pointer"><input type="radio" name="cach_phat" value="theo_phut"> Trừ theo số phút</label>
+            <label class="flex-1 flex items-center gap-2 rounded-xl border border-[#e6dfd5] px-3 py-2 cursor-pointer"><input type="radio" name="cach_phat" value="co_dinh"> Mức cố định mỗi lần</label>
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+            <label class="text-xs font-bold text-[#52525b]">Đồng / phút
+                <input type="number" min="0" step="100" name="phat_moi_phut" class="form-input mt-1">
+            </label>
+            <label class="text-xs font-bold text-[#52525b]">Đồng / lần
+                <input type="number" min="0" step="1000" name="phat_moi_lan" class="form-input mt-1">
+            </label>
+        </div>
+        <label class="block text-xs font-bold text-[#52525b]">Phạt vắng không phép (đồng / ca, 0 = không phạt tiền)
+            <input type="number" min="0" step="1000" name="phat_vang_moi_lan" class="form-input mt-1">
+        </label>
+        <p class="text-[11px] text-[#71717a]">Trễ/sớm trong thời gian ân hạn của Cài đặt chấm công không bị phạt. Ca được Quản lý "Miễn phạt" không bị trừ.</p>
+    </div>
+
+    <div class="dash-card p-5 space-y-3">
+        <h2 class="font-bold">Thưởng chuyên cần</h2>
+        <label class="block text-xs font-bold text-[#52525b]">Mức thưởng (đồng / kỳ)
+            <input type="number" min="0" step="10000" name="thuong_chuyen_can" class="form-input mt-1">
+        </label>
+        <label class="block text-xs font-bold text-[#52525b]">Số ca tối thiểu trong kỳ
+            <input type="number" min="0" max="100" name="chuyen_can_so_ca_toi_thieu" class="form-input mt-1">
+        </label>
+        <label class="flex items-center gap-2 text-sm font-semibold"><input type="checkbox" name="chuyen_can_ky_tuan"> Xét cả kỳ lương tuần (mặc định chỉ kỳ tháng)</label>
+        <p class="text-[11px] text-[#71717a]">Điều kiện: cả kỳ không đi trễ, về sớm, vắng không phép (trừ ca được miễn phạt) và không còn ca thiếu check-out.</p>
+    </div>
+
+    <div class="dash-card p-5 space-y-3">
+        <h2 class="font-bold">Hệ số theo loại ca</h2>
+        <div id="shift-coefs" class="divide-y divide-[#f5efe6] text-sm"></div>
+        <p class="text-[11px] text-[#71717a]">VD ca đêm × 1.2. Ca rơi vào ngày lễ lấy hệ số cao hơn giữa hệ số ca và hệ số ngày lễ, không nhân chồng.</p>
+    </div>
+
+    <div class="lg:col-span-2 flex items-center justify-end gap-3">
+        <span id="updated" class="text-[11px] text-[#71717a]"></span>
+        <button type="submit" class="btn-primary px-6">Lưu cài đặt</button>
+    </div>
+</form>
+
+<section class="dash-card p-5 mt-6">
+    <div class="flex flex-col sm:flex-row sm:items-end justify-between gap-3 mb-3">
+        <div>
+            <h2 class="font-bold">Ngày lễ</h2>
+            <p class="text-xs text-[#71717a]">Ca làm trong ngày lễ được nhân hệ số ngày lễ.</p>
+        </div>
+        <form id="holiday-form" class="flex flex-wrap items-end gap-2">
+            <label class="text-xs font-bold text-[#52525b]">Ngày
+                <input type="date" id="h-date" required class="form-input mt-1 !py-2">
+            </label>
+            <label class="text-xs font-bold text-[#52525b]">Tên ngày lễ
+                <input type="text" id="h-name" required minlength="2" maxlength="100" class="form-input mt-1 !py-2" placeholder="VD Quốc khánh">
+            </label>
+            <label class="text-xs font-bold text-[#52525b] w-24">Hệ số
+                <input type="number" id="h-coef" min="1" max="5" step="0.1" class="form-input mt-1 !py-2">
+            </label>
+            <button type="submit" class="btn-outline-brand">+ Thêm</button>
+        </form>
+    </div>
+    <div class="overflow-x-auto">
+        <table class="w-full text-sm">
+            <thead>
+                <tr class="bg-[#eee7db]/80 text-xs font-bold text-[#52525b] text-left">
+                    <th class="py-2 px-2 rounded-l-lg">Ngày</th>
+                    <th class="py-2 px-2">Tên</th>
+                    <th class="py-2 px-2 text-center">Hệ số</th>
+                    <th class="py-2 px-2 rounded-r-lg"></th>
+                </tr>
+            </thead>
+            <tbody id="holidays" class="divide-y divide-[#f5efe6]"></tbody>
+        </table>
+    </div>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/js/payroll-common.js"></script>
+<script src="/static/js/payroll-settings.js"></script>
+{% endblock %}

@@ -1,0 +1,121 @@
+{% extends "_layout.html" %}
+
+{% block content %}
+<!-- Màn 10: Chi tiết công & nhật ký điều chỉnh (FR-11, FR-11A, FR-11B) -->
+<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-[#f0e9df]">
+    <div>
+        <h1 class="text-3xl font-extrabold text-[#18181b] tracking-tight">Chi tiết chấm công &amp; audit</h1>
+        <p id="sub" class="text-sm text-[#71717a] mt-1 font-medium">Đang tải...</p>
+    </div>
+    <div class="flex flex-wrap gap-2 self-start">
+        <a href="/attendance-manage" class="btn-outline-brand">Quay lại</a>
+        <a id="btn-adjust" href="#" class="btn-primary px-5">Điều chỉnh trực tiếp</a>
+    </div>
+</div>
+
+<div id="labels" class="flex flex-wrap gap-2 mt-4"></div>
+<div id="locked-note" class="hidden mt-4 rounded-xl bg-amber-50 border border-amber-200 px-4 py-3 text-sm text-amber-800">
+    Ca này thuộc kỳ công đã chốt. Mọi điều chỉnh sẽ ghi thành bản ghi điều chỉnh ở kỳ sau, không sửa số liệu kỳ đã chốt.
+</div>
+
+<div class="grid grid-cols-1 lg:grid-cols-5 gap-6 mt-6">
+    <div class="lg:col-span-3 dash-card p-5">
+        <h2 class="font-bold">Dự kiến / thực tế</h2>
+        <table class="w-full text-sm mt-3">
+            <thead>
+                <tr class="bg-[#eee7db]/80 text-xs font-bold text-[#52525b] text-left">
+                    <th class="py-2 px-2 rounded-l-lg">Chỉ tiêu</th>
+                    <th class="py-2 px-2">Ca được phân</th>
+                    <th class="py-2 px-2 rounded-r-lg">Đã ghi nhận</th>
+                </tr>
+            </thead>
+            <tbody id="plan-rows" class="divide-y divide-[#f5efe6]"></tbody>
+        </table>
+        <p class="text-[11px] text-[#71717a] mt-3">Giờ máy chủ Việt Nam GMT+7. Giờ gốc lúc bấm nút được giữ nguyên, không bị ghi đè.</p>
+    </div>
+    <div class="lg:col-span-2 dash-card p-5">
+        <h2 class="font-bold">Dữ liệu vị trí · chỉ Quản lý</h2>
+        <div id="location" class="text-xs text-[#52525b] mt-3 space-y-1"></div>
+        <p class="text-[11px] text-[#71717a] mt-3">Tọa độ và IP chỉ dùng để kiểm tra, không hiển thị cho nhân viên khác.</p>
+    </div>
+</div>
+
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
+    <div class="dash-card p-5 space-y-3">
+        <h2 class="font-bold">Duyệt giờ vượt ca</h2>
+        <p id="ot-info" class="text-xs text-[#52525b]"></p>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <label class="text-xs font-bold text-[#52525b]">Số phút duyệt *
+                <input type="number" min="0" id="ot-minutes" class="form-input mt-1">
+            </label>
+            <label class="text-xs font-bold text-[#52525b]">Lý do duyệt *
+                <input type="text" id="ot-reason" class="form-input mt-1" placeholder="Bàn giao và vệ sinh quầy sau ca">
+            </label>
+        </div>
+        <div class="flex gap-2">
+            <button type="button" id="btn-ot" class="btn-primary px-4">Duyệt giờ vượt ca</button>
+            <button type="button" id="btn-ot-no" class="btn-outline-brand">Không duyệt</button>
+        </div>
+        <p class="text-[11px] text-[#71717a]">Trước khi duyệt chỉ tính giờ trong ca. Độc lập với yêu cầu bù/sửa công.</p>
+    </div>
+    <div class="dash-card p-5 space-y-3">
+        <h2 class="font-bold">Miễn phạt (trường hợp có vi phạm)</h2>
+        <p id="waive-info" class="text-xs text-[#52525b]"></p>
+        <label class="block text-xs font-bold text-[#52525b]">Lý do miễn phạt *
+            <input type="text" id="waive-reason" class="form-input mt-1" placeholder="Nhập lý do cụ thể...">
+        </label>
+        <div class="flex gap-2">
+            <button type="button" id="btn-waive" class="btn-primary px-4">Xác nhận miễn phạt</button>
+            <button type="button" id="btn-unwaive" class="hidden btn-outline-brand">Bỏ miễn phạt</button>
+        </div>
+        <p class="text-[11px] text-[#71717a]">Không làm mất giờ gốc. Nhãn miễn phạt và người xác nhận được lưu vào nhật ký.</p>
+    </div>
+</div>
+
+<div id="flag-card" class="dash-card p-5 mt-6 space-y-3">
+    <h2 class="font-bold">Xác minh cờ · không tự kết luận gian lận</h2>
+    <div id="flag-list" class="flex flex-wrap gap-2"></div>
+    <p class="text-xs text-[#52525b]">Ngoài phạm vi: kiểm tra khoảng cách. Thiếu GPS: kiểm tra IP / quyền vị trí. Cùng thiết bị: xem các tài khoản dùng chung.</p>
+    <label class="block text-xs font-bold text-[#52525b]">Ghi chú xác minh / giải trình *
+        <input type="text" id="flag-note" class="form-input mt-1" placeholder="Ghi kết luận và minh chứng sau khi kiểm tra...">
+    </label>
+    <div class="flex gap-2">
+        <button type="button" id="btn-flag-ok" class="btn-primary px-4">Xác nhận giải trình</button>
+        <button type="button" id="btn-flag-keep" class="btn-outline-brand">Giữ cờ để theo dõi</button>
+    </div>
+    <p id="flag-result" class="text-[11px] text-[#71717a]"></p>
+</div>
+
+<div class="dash-card p-5 mt-6">
+    <h2 class="font-bold">Yêu cầu bù/sửa công của ca</h2>
+    <ul id="requests" class="mt-3 space-y-2 text-sm"></ul>
+</div>
+
+<div class="dash-card p-5 mt-6">
+    <h2 class="font-bold">Nhật ký chỉ đọc</h2>
+    <div class="overflow-x-auto mt-3">
+        <table class="w-full text-sm">
+            <thead>
+                <tr class="bg-[#eee7db]/80 text-xs font-bold text-[#52525b] text-left">
+                    <th class="py-2 px-2 rounded-l-lg">Thời gian GMT+7</th>
+                    <th class="py-2 px-2">Hành động</th>
+                    <th class="py-2 px-2">Trước → Sau</th>
+                    <th class="py-2 px-2">Người yêu cầu / Duyệt</th>
+                    <th class="py-2 px-2 rounded-r-lg">Lý do</th>
+                </tr>
+            </thead>
+            <tbody id="logs" class="divide-y divide-[#f5efe6]"></tbody>
+        </table>
+    </div>
+    <div id="adjustments" class="mt-4"></div>
+</div>
+
+<div class="mt-6 rounded-xl bg-amber-50 border border-amber-200 px-4 py-3 text-xs text-amber-800">
+    <strong>Giữ nguyên nguồn dữ liệu:</strong> bản gốc bất biến; phiên bản đã duyệt chỉ bổ sung và tính lại trạng thái. Nếu kỳ đã khóa, chuyển bút toán điều chỉnh sang kỳ sau.
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/js/attendance-common.js"></script>
+<script src="/static/js/attendance-detail.js"></script>
+{% endblock %}

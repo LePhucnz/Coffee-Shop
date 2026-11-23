@@ -1,0 +1,161 @@
+{% extends "_layout.html" %}
+
+{% block content %}
+<!-- Sprint 6: Tính lương tự động (FR-12) và báo cáo lương toàn quán (FR-13) -->
+<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-[#f0e9df]">
+    <div>
+        <h1 class="text-3xl font-extrabold text-[#18181b] tracking-tight">Tính lương</h1>
+        <p class="text-sm text-[#71717a] mt-1 font-medium">Lương = Giờ làm thực tế × Đơn giá/giờ × Hệ số ca + Thưởng - Phạt</p>
+    </div>
+    <div class="flex flex-wrap gap-2 self-start">
+        <a href="/payroll-settings" class="btn-outline-brand">Cài đặt lương</a>
+        <button type="button" id="btn-new" class="btn-primary px-5">+ Tạo kỳ lương</button>
+    </div>
+</div>
+
+<div id="empty" class="hidden dash-card p-8 mt-6 text-center">
+    <div class="text-4xl">🧾</div>
+    <h2 class="text-lg font-extrabold mt-2">Chưa có kỳ lương nào</h2>
+    <p class="text-sm text-[#71717a] mt-1">Tạo kỳ lương tháng hoặc tuần, hệ thống tự tổng hợp giờ công từ chấm công để xem trước bảng lương.</p>
+    <button type="button" class="btn-primary px-5 mt-4" onclick="openCreate()">Tạo kỳ lương đầu tiên</button>
+</div>
+
+<div id="content" class="hidden">
+    <!-- Chọn kỳ -->
+    <div class="dash-card p-4 mt-6 flex flex-col lg:flex-row lg:items-end gap-4 justify-between">
+        <label class="text-xs font-bold text-[#52525b] flex-1 max-w-md">Kỳ lương
+            <select id="period-select" class="form-input mt-1 !py-2"></select>
+        </label>
+        <div id="period-meta" class="text-xs text-[#71717a] lg:text-right space-y-0.5"></div>
+    </div>
+
+    <!-- Thẻ tổng -->
+    <div class="grid grid-cols-2 lg:grid-cols-5 gap-3 mt-6">
+        <div class="dash-card p-4"><div class="text-[11px] font-bold uppercase text-[#71717a]">Nhân viên</div><div id="t-staff" class="text-2xl font-extrabold mt-1">-</div></div>
+        <div class="dash-card p-4"><div class="text-[11px] font-bold uppercase text-[#71717a]">Tổng giờ công</div><div id="t-hours" class="text-2xl font-extrabold mt-1">-</div></div>
+        <div class="dash-card p-4"><div class="text-[11px] font-bold uppercase text-[#71717a]">Lương cơ bản</div><div id="t-base" class="text-xl font-extrabold mt-1">-</div></div>
+        <div class="dash-card p-4"><div class="text-[11px] font-bold uppercase text-[#71717a]">Thưởng / Phạt</div><div class="text-sm font-extrabold mt-1"><span id="t-bonus" class="text-emerald-700">-</span><br><span id="t-penalty" class="text-[#dc2626]">-</span></div></div>
+        <div class="dash-card p-4 col-span-2 lg:col-span-1 !bg-[#1c1510] !border-[#1c1510]"><div class="text-[11px] font-bold uppercase text-[#e8b98a]">Tổng thực lãnh</div><div id="t-net" class="text-xl font-extrabold text-white mt-1">-</div></div>
+    </div>
+
+    <div id="warnings" class="mt-6"></div>
+
+    <!-- Thao tác -->
+    <div class="dash-card p-4 mt-6 flex flex-wrap items-center gap-3">
+        <button type="button" id="btn-recalc" class="btn-outline-brand">Tính lại theo chấm công mới nhất</button>
+        <button type="button" id="btn-xlsx" class="btn-outline-brand">Xuất Excel (.xlsx)</button>
+        <button type="button" id="btn-pdf" class="btn-outline-brand">Xuất PDF</button>
+        <a href="/attendance-manage?che_do=ky" id="btn-grid" class="btn-outline-brand">Đối soát bảng công</a>
+        <span class="flex-1"></span>
+        <button type="button" id="btn-delete" class="text-xs font-bold text-[#dc2626] hover:underline">Xóa kỳ nháp</button>
+        <button type="button" id="btn-finalize" class="btn-primary px-5">Chốt kỳ lương</button>
+    </div>
+
+    <!-- Bảng lương -->
+    <section class="dash-card p-5 mt-6">
+        <div class="flex flex-wrap items-center justify-between gap-3 mb-3">
+            <h2 class="font-bold">Bảng lương xem trước</h2>
+            <input type="text" id="f-keyword" class="form-input !py-2 max-w-xs" placeholder="Tìm tên, mã nhân viên...">
+        </div>
+        <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+                <thead>
+                    <tr class="bg-[#eee7db]/80 text-xs font-bold text-[#52525b] text-left">
+                        <th class="py-2 px-2 rounded-l-lg">Nhân viên</th>
+                        <th class="py-2 px-2">Đơn giá</th>
+                        <th class="py-2 px-2 text-center">Số ca</th>
+                        <th class="py-2 px-2 text-right">Giờ công</th>
+                        <th class="py-2 px-2 text-center">Trễ / Sớm</th>
+                        <th class="py-2 px-2 text-center">Vắng</th>
+                        <th class="py-2 px-2 text-right">Lương cơ bản</th>
+                        <th class="py-2 px-2 text-right">Thưởng</th>
+                        <th class="py-2 px-2 text-right">Phạt</th>
+                        <th class="py-2 px-2 text-right">Thực lãnh</th>
+                        <th class="py-2 px-2 rounded-r-lg"></th>
+                    </tr>
+                </thead>
+                <tbody id="rows" class="divide-y divide-[#f5efe6]"></tbody>
+                <tfoot id="foot"></tfoot>
+            </table>
+        </div>
+    </section>
+
+    <div class="dash-card p-5 mt-6 text-xs text-[#52525b] space-y-1">
+        <h2 class="text-sm font-bold text-[#18181b]">Cách hệ thống tính</h2>
+        <p>Giờ công chỉ gồm ca đã đủ giờ vào/ra (hoặc ca hủy có tính công). Giờ vượt ca chỉ được tính khi Quản lý đã duyệt (BR-09). Ca chưa check-out chưa được tính.</p>
+        <p>Hệ số ca lấy mức cao hơn giữa hệ số của loại ca (VD ca tối × 1.2) và hệ số ngày lễ (VD × 2.0). Ca được "Miễn phạt" ở màn chấm công thì không bị trừ tiền.</p>
+        <p>Hợp đồng ghi mức lương từ ngưỡng lương tháng trở lên được quy đổi ra đơn giá giờ theo số giờ chuẩn tháng. Chốt kỳ sẽ khóa phiếu lương và kỳ công cùng khoảng ngày; điều chỉnh công sau đó được cộng/trừ vào kỳ lương kế tiếp (BR-04).</p>
+    </div>
+</div>
+
+<!-- Tạo kỳ lương -->
+<div id="create-modal" class="hidden fixed inset-0 z-50 bg-black/50 flex items-start justify-center p-4 overflow-y-auto">
+    <form id="create-form" class="bg-white rounded-2xl shadow-xl w-full max-w-lg p-6 my-8 space-y-4">
+        <div class="flex items-center justify-between">
+            <h3 class="text-lg font-extrabold">Tạo kỳ lương</h3>
+            <button type="button" onclick="closeModal('create-modal')" class="text-[#71717a] text-xl leading-none">&times;</button>
+        </div>
+        <div class="flex gap-2" id="type-tabs">
+            <button type="button" data-type="thang" class="type-tab flex-1 py-2 rounded-xl border text-sm font-bold">Theo tháng</button>
+            <button type="button" data-type="tuan" class="type-tab flex-1 py-2 rounded-xl border text-sm font-bold">Theo tuần</button>
+            <button type="button" data-type="tuy_chon" class="type-tab flex-1 py-2 rounded-xl border text-sm font-bold">Tùy chọn</button>
+        </div>
+        <label id="c-month-wrap" class="block text-xs font-bold text-[#52525b]">Tháng
+            <input type="month" id="c-month" class="form-input mt-1">
+        </label>
+        <label id="c-week-wrap" class="hidden block text-xs font-bold text-[#52525b]">Một ngày bất kỳ trong tuần (Thứ Hai - Chủ Nhật)
+            <input type="date" id="c-week" class="form-input mt-1">
+        </label>
+        <div id="c-range-wrap" class="hidden grid grid-cols-2 gap-3">
+            <label class="text-xs font-bold text-[#52525b]">Từ ngày
+                <input type="date" id="c-from" class="form-input mt-1">
+            </label>
+            <label class="text-xs font-bold text-[#52525b]">Đến ngày
+                <input type="date" id="c-to" class="form-input mt-1">
+            </label>
+        </div>
+        <div id="c-preview" class="rounded-xl bg-[#faf6f0] p-3 text-sm"></div>
+        <label class="block text-xs font-bold text-[#52525b]">Tên kỳ (không bắt buộc)
+            <input type="text" id="c-name" maxlength="100" class="form-input mt-1" placeholder="Để trống: tự đặt tên theo khoảng ngày">
+        </label>
+        <label class="block text-xs font-bold text-[#52525b]">Ghi chú
+            <input type="text" id="c-note" maxlength="255" class="form-input mt-1">
+        </label>
+        <div class="flex justify-end gap-2 pt-2">
+            <button type="button" class="btn-outline-brand" onclick="closeModal('create-modal')">Hủy</button>
+            <button type="submit" id="c-submit" class="btn-primary px-5">Tạo và tính lương</button>
+        </div>
+    </form>
+</div>
+
+<!-- Chốt kỳ lương -->
+<div id="finalize-modal" class="hidden fixed inset-0 z-50 bg-black/50 flex items-start justify-center p-4 overflow-y-auto">
+    <div class="bg-white rounded-2xl shadow-xl w-full max-w-lg p-6 my-8 space-y-4">
+        <div class="flex items-center justify-between">
+            <h3 class="text-lg font-extrabold">Chốt kỳ lương</h3>
+            <button type="button" onclick="closeModal('finalize-modal')" class="text-[#71717a] text-xl leading-none">&times;</button>
+        </div>
+        <div id="fz-summary" class="rounded-xl bg-[#faf6f0] p-3 text-sm space-y-1"></div>
+        <div id="fz-warnings"></div>
+        <label id="fz-carry-wrap" class="hidden flex items-start gap-2 text-sm rounded-xl border border-amber-200 bg-amber-50 p-3">
+            <input type="checkbox" id="fz-carry" class="mt-1">
+            <span>Chuyển <b id="fz-pending">0</b> yêu cầu bù/sửa công chờ duyệt sang kỳ sau dưới dạng điều chỉnh. Nếu muốn xử lý ngay, hãy <a href="/attendance-requests" class="text-[#cf6800] font-bold hover:underline">mở danh sách yêu cầu</a>.</span>
+        </label>
+        <ul class="text-xs text-[#52525b] list-disc pl-5 space-y-1">
+            <li>Phiếu lương bị khóa, không tính lại hay thêm/xóa khoản được nữa.</li>
+            <li>Kỳ công cùng khoảng ngày được chốt: sửa công sau này ghi thành bản điều chỉnh cho kỳ lương sau (BR-04).</li>
+            <li>Nhân viên nhận thông báo và xem, tải được phiếu lương của mình.</li>
+        </ul>
+        <div class="flex justify-end gap-2 pt-2">
+            <button type="button" class="btn-outline-brand" onclick="closeModal('finalize-modal')">Để sau</button>
+            <button type="button" id="fz-confirm" class="btn-primary px-5">Xác nhận chốt kỳ</button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/js/attendance-common.js"></script>
+<script src="/static/js/payroll-common.js"></script>
+<script src="/static/js/payroll.js"></script>
+{% endblock %}

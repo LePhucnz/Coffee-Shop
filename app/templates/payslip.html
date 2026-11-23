@@ -1,0 +1,102 @@
+{% extends "_layout.html" %}
+
+{% block content %}
+<!-- Sprint 6: Phiếu lương cá nhân (FR-13) và điều chỉnh thủ công trước khi chốt (FR-12) -->
+<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-[#f0e9df]">
+    <div>
+        <div id="ps-period" class="text-xs font-bold uppercase text-[#cf6800]">Phiếu lương</div>
+        <h1 id="ps-name" class="text-3xl font-extrabold text-[#18181b] tracking-tight">Đang tải...</h1>
+        <p id="ps-sub" class="text-sm text-[#71717a] mt-1 font-medium"></p>
+    </div>
+    <div class="flex flex-wrap gap-2 self-start">
+        <a id="btn-back" href="/my-payslips" class="btn-outline-brand">Quay lại</a>
+        <button type="button" id="btn-xlsx" class="btn-outline-brand">Tải Excel</button>
+        <button type="button" id="btn-pdf" class="btn-primary px-5">Tải PDF</button>
+    </div>
+</div>
+
+<div id="ps-warnings" class="mt-6"></div>
+
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-6">
+    <!-- Tóm tắt -->
+    <section class="dash-card p-5 lg:col-span-1 space-y-4">
+        <div class="rounded-2xl bg-[#1c1510] text-white p-5">
+            <div class="text-[11px] font-bold uppercase text-[#e8b98a]">Thực lãnh</div>
+            <div id="ps-net" class="text-3xl font-extrabold mt-1">-</div>
+            <div id="ps-status" class="mt-2"></div>
+        </div>
+        <dl class="text-sm divide-y divide-[#f5efe6]" id="ps-summary"></dl>
+        <p class="text-[11px] text-[#71717a]">Lương cơ bản = Giờ công × Đơn giá/giờ × Hệ số ca. Thực lãnh = Lương cơ bản + Thưởng + Phụ cấp - Phạt - Khấu trừ.</p>
+    </section>
+
+    <div class="lg:col-span-2 space-y-6">
+        <!-- Khoản thưởng / phạt -->
+        <section class="dash-card p-5">
+            <div class="flex items-center justify-between gap-3 mb-3">
+                <h2 class="font-bold">Thưởng, phụ cấp, phạt, khấu trừ</h2>
+                <button type="button" id="btn-add" class="hidden btn-outline-brand text-xs">+ Thêm khoản thủ công</button>
+            </div>
+            <div id="ps-items" class="divide-y divide-[#f5efe6] text-sm"></div>
+            <p id="ps-own-note" class="hidden text-xs text-amber-700 mt-3">Đây là phiếu lương của chính bạn: theo BR-08, nhờ Chủ quán (Admin) điều chỉnh nếu cần.</p>
+        </section>
+
+        <!-- Chi tiết ca -->
+        <section class="dash-card p-5">
+            <h2 class="font-bold mb-3">Chi tiết từng ca</h2>
+            <div class="overflow-x-auto">
+                <table class="w-full text-sm">
+                    <thead>
+                        <tr class="bg-[#eee7db]/80 text-xs font-bold text-[#52525b] text-left">
+                            <th class="py-2 px-2 rounded-l-lg">Ngày</th>
+                            <th class="py-2 px-2">Ca</th>
+                            <th class="py-2 px-2">Vào / Ra</th>
+                            <th class="py-2 px-2">Trạng thái</th>
+                            <th class="py-2 px-2 text-right">Giờ</th>
+                            <th class="py-2 px-2 text-center">Hệ số</th>
+                            <th class="py-2 px-2 text-right">Thành tiền</th>
+                            <th class="py-2 px-2 rounded-r-lg">Trễ / Sớm</th>
+                        </tr>
+                    </thead>
+                    <tbody id="ps-shifts" class="divide-y divide-[#f5efe6]"></tbody>
+                </table>
+            </div>
+            <p class="text-xs text-[#71717a] mt-3">Ca chưa check-out hoặc vắng không có giờ công. Giờ vượt ca chỉ tính phần Quản lý đã duyệt.</p>
+        </section>
+    </div>
+</div>
+
+<!-- Thêm khoản thủ công -->
+<div id="item-modal" class="hidden fixed inset-0 z-50 bg-black/50 flex items-start justify-center p-4 overflow-y-auto">
+    <form id="item-form" class="bg-white rounded-2xl shadow-xl w-full max-w-md p-6 my-8 space-y-4">
+        <div class="flex items-center justify-between">
+            <h3 class="text-lg font-extrabold">Thêm khoản thủ công</h3>
+            <button type="button" onclick="closeModal('item-modal')" class="text-[#71717a] text-xl leading-none">&times;</button>
+        </div>
+        <label class="block text-xs font-bold text-[#52525b]">Loại khoản *
+            <select id="i-type" class="form-input mt-1">
+                <option value="phu_cap">Phụ cấp (cộng)</option>
+                <option value="thuong">Thưởng (cộng)</option>
+                <option value="khau_tru">Khấu trừ (trừ)</option>
+                <option value="phat">Phạt (trừ)</option>
+            </select>
+        </label>
+        <label class="block text-xs font-bold text-[#52525b]">Số tiền (đồng) *
+            <input type="number" id="i-amount" min="1000" step="1000" class="form-input mt-1" placeholder="VD 200000">
+        </label>
+        <label class="block text-xs font-bold text-[#52525b]">Lý do *
+            <input type="text" id="i-reason" maxlength="255" class="form-input mt-1" placeholder="VD Phụ cấp làm thêm dịp sự kiện">
+        </label>
+        <p class="text-[11px] text-[#71717a]">Khoản thủ công được giữ lại khi tính lại lương và ghi vào nhật ký hệ thống.</p>
+        <div class="flex justify-end gap-2">
+            <button type="button" class="btn-outline-brand" onclick="closeModal('item-modal')">Hủy</button>
+            <button type="submit" class="btn-primary px-5">Thêm khoản</button>
+        </div>
+    </form>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/js/attendance-common.js"></script>
+<script src="/static/js/payroll-common.js"></script>
+<script src="/static/js/payslip.js"></script>
+{% endblock %}

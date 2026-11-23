@@ -1,0 +1,164 @@
+{% extends "_layout.html" %}
+
+{% block content %}
+<!-- Màn 11: Điều chỉnh trực tiếp / hàng loạt, chốt kỳ, hủy ca (FR-11A, FR-11D) -->
+<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-[#f0e9df]">
+    <div>
+        <h1 class="text-3xl font-extrabold text-[#18181b] tracking-tight">Điều chỉnh công có kiểm soát</h1>
+        <p class="text-sm text-[#71717a] mt-1 font-medium">Mọi thay đổi có lý do, thông báo cho nhân viên và ghi nhật ký</p>
+    </div>
+    <a href="/attendance-manage" class="btn-outline-brand self-start">Quay lại bảng chấm công</a>
+</div>
+
+<div class="flex flex-wrap gap-6 mt-6 border-b border-[#f0e9df] text-sm font-bold">
+    <button type="button" data-tab="direct" class="tab-btn pb-2 border-b-2 border-transparent text-[#71717a]">Điều chỉnh trực tiếp</button>
+    <button type="button" data-tab="bulk" class="tab-btn pb-2 border-b-2 border-transparent text-[#71717a]">Điều chỉnh hàng loạt</button>
+    <button type="button" data-tab="lock" class="tab-btn pb-2 border-b-2 border-transparent text-[#71717a]">Chốt kỳ công</button>
+</div>
+
+<!-- ===== Điều chỉnh trực tiếp ===== -->
+<section id="tab-direct" class="hidden mt-6">
+    <div id="direct-empty" class="dash-card p-6 text-sm text-[#52525b]">
+        Chọn một ca từ <a href="/attendance-manage" class="font-bold text-[#cf6800] hover:underline">bảng chấm công</a> rồi bấm "Điều chỉnh trực tiếp" ở màn chi tiết.
+    </div>
+    <div id="direct-body" class="hidden grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <form id="direct-form" class="dash-card p-5 space-y-3">
+            <h2 id="d-employee" class="font-bold"></h2>
+            <div class="text-xs font-bold text-[#52525b]">Ngày / ca được phân
+                <div id="d-shift" class="form-input mt-1 bg-[#faf6f0]"></div>
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <label class="text-xs font-bold text-[#52525b]">Giờ vào thực tế *
+                    <input type="datetime-local" id="d-in" class="form-input mt-1">
+                </label>
+                <label class="text-xs font-bold text-[#52525b]">Giờ ra thực tế
+                    <input type="datetime-local" id="d-out" class="form-input mt-1">
+                </label>
+            </div>
+            <label class="flex items-center gap-2 text-xs font-semibold text-[#52525b]">
+                <input type="checkbox" id="d-clear-out"> Xóa giờ ra (ghi nhận chưa check-out)
+            </label>
+            <label class="block text-xs font-bold text-[#52525b]">Sửa ca được phân (nếu sai ca)
+                <select id="d-target" class="form-input mt-1"></select>
+            </label>
+            <label class="block text-xs font-bold text-[#52525b]">Lý do điều chỉnh *
+                <textarea id="d-reason" rows="2" class="form-input mt-1" placeholder="Ví dụ: xác nhận bàn giao cuối ca, nhân viên quên check-out"></textarea>
+            </label>
+            <p class="text-[11px] text-[#71717a]">Hệ thống báo cho nhân viên sau khi lưu. Không được tự điều chỉnh công của chính mình.</p>
+            <div class="flex gap-2">
+                <a id="d-cancel" href="/attendance-manage" class="btn-outline-brand">Hủy</a>
+                <button type="submit" class="btn-primary px-5">Lưu điều chỉnh</button>
+            </div>
+        </form>
+
+        <div class="space-y-4">
+            <div class="dash-card p-5">
+                <h2 class="font-bold">Xem trước: bản gốc → bản mới</h2>
+                <table class="w-full text-sm mt-3">
+                    <thead>
+                        <tr class="bg-[#eee7db]/80 text-xs font-bold text-[#52525b] text-left">
+                            <th class="py-2 px-2 rounded-l-lg">Chỉ tiêu</th>
+                            <th class="py-2 px-2">Trước</th>
+                            <th class="py-2 px-2 rounded-r-lg">Sau</th>
+                        </tr>
+                    </thead>
+                    <tbody id="d-preview" class="divide-y divide-[#f5efe6]"></tbody>
+                </table>
+            </div>
+            <div class="rounded-xl bg-amber-50 border border-amber-200 p-4 text-xs text-amber-800">
+                <strong>Kiểm tra trước khi lưu:</strong> giờ vào phải trước giờ ra và không trùng ca khác. Ca qua đêm thuộc ngày bắt đầu ca.
+            </div>
+            <div id="d-open-request" class="hidden rounded-xl bg-amber-50 border border-amber-200 p-4 text-xs text-amber-800"></div>
+            <div id="d-locked" class="hidden rounded-xl bg-amber-50 border border-amber-200 p-4 text-xs text-amber-800">
+                <strong>Kỳ đã khóa.</strong> Điều chỉnh sẽ ghi thành bản ghi điều chỉnh vào kỳ lương sau, kèm tham chiếu bản gốc.
+            </div>
+
+            <form id="cancel-form" class="dash-card p-5 space-y-3">
+                <h2 class="font-bold">Hủy ca nhưng đã có dữ liệu</h2>
+                <p class="text-xs text-[#52525b]">Giữ nguyên lịch sử check-in/check-out. Ca bị hủy không còn tính vắng, trễ, sớm. Quản lý quyết định thời gian đã làm có được tính không.</p>
+                <div class="flex gap-4 text-sm">
+                    <label class="flex items-center gap-2"><input type="radio" name="c-pay" value="1" checked> Tính thời gian đã làm</label>
+                    <label class="flex items-center gap-2"><input type="radio" name="c-pay" value="0"> Không tính</label>
+                </div>
+                <label class="block text-xs font-bold text-[#52525b]">Lý do *
+                    <input type="text" id="c-reason" class="form-input mt-1" placeholder="Ca hủy lúc 16:00, xác nhận đã làm 2 giờ">
+                </label>
+                <button type="submit" class="btn-outline-brand">Lưu quyết định &amp; ghi nhật ký</button>
+            </form>
+        </div>
+    </div>
+</section>
+
+<!-- ===== Hàng loạt ===== -->
+<section id="tab-bulk" class="hidden mt-6 dash-card p-5 space-y-4">
+    <h2 class="font-bold">Chế độ hàng loạt · sự cố hệ thống</h2>
+    <p class="text-xs text-[#52525b]">Chọn các ca bị ảnh hưởng, nhập giờ thực tế cho từng ca. Hệ thống không tự đoán giờ ra.</p>
+    <label class="text-xs font-bold text-[#52525b] inline-block">Ngày
+        <input type="date" id="b-day" class="form-input mt-1 !py-2">
+    </label>
+    <div class="overflow-x-auto">
+        <table class="w-full text-sm">
+            <thead>
+                <tr class="bg-[#eee7db]/80 text-xs font-bold text-[#52525b] text-left">
+                    <th class="py-2 px-2 rounded-l-lg">Chọn / Nhân viên</th>
+                    <th class="py-2 px-2">Ca bị ảnh hưởng</th>
+                    <th class="py-2 px-2">Đã ghi nhận</th>
+                    <th class="py-2 px-2">Giờ vào đề xuất</th>
+                    <th class="py-2 px-2 rounded-r-lg">Giờ ra đề xuất</th>
+                </tr>
+            </thead>
+            <tbody id="b-rows" class="divide-y divide-[#f5efe6]"></tbody>
+        </table>
+    </div>
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-3">
+        <label class="text-xs font-bold text-[#52525b]">Lý do áp dụng chung *
+            <input type="text" id="b-reason" class="form-input mt-1" placeholder="Sự cố mạng cửa hàng; xác nhận lại bằng bảng bàn giao">
+        </label>
+        <label class="flex items-center gap-2 text-xs font-semibold text-[#52525b] mt-5">
+            <input type="checkbox" id="b-waive"> Miễn phạt do sự cố (dùng chung lý do)
+        </label>
+    </div>
+    <div class="flex flex-wrap gap-2">
+        <button type="button" id="b-preview-btn" class="btn-primary px-5">Xem trước</button>
+        <button type="button" id="b-apply-btn" class="btn-outline-brand" disabled>Xác nhận điều chỉnh hàng loạt</button>
+    </div>
+    <div id="b-result" class="text-sm"></div>
+    <p class="text-[11px] text-[#71717a]">Thông báo từng nhân viên, ghi nhật ký từng bản ghi. Giờ vượt ca vẫn cần duyệt riêng ở màn chi tiết.</p>
+</section>
+
+<!-- ===== Chốt kỳ ===== -->
+<section id="tab-lock" class="hidden mt-6 grid grid-cols-1 lg:grid-cols-2 gap-6">
+    <form id="lock-form" class="dash-card p-5 space-y-3">
+        <h2 class="font-bold">Chốt kỳ công</h2>
+        <p class="text-xs text-[#52525b]">Sau khi chốt, mọi điều chỉnh cho các ngày trong kỳ sẽ ghi sang kỳ sau, không sửa số liệu đã chốt. Chỉ Chủ quán (Admin) được mở khóa.</p>
+        <div class="grid grid-cols-2 gap-3">
+            <label class="text-xs font-bold text-[#52525b]">Từ ngày *
+                <input type="date" id="l-from" class="form-input mt-1">
+            </label>
+            <label class="text-xs font-bold text-[#52525b]">Đến ngày *
+                <input type="date" id="l-to" class="form-input mt-1">
+            </label>
+        </div>
+        <label class="block text-xs font-bold text-[#52525b]">Ghi chú
+            <input type="text" id="l-note" class="form-input mt-1" placeholder="Chốt công tháng để tính lương">
+        </label>
+        <button type="submit" class="btn-primary px-5">Chốt kỳ</button>
+        <div id="l-pending" class="hidden rounded-xl bg-amber-50 border border-amber-200 p-4 text-xs text-amber-800 space-y-2">
+            <div id="l-pending-text"></div>
+            <div class="flex flex-wrap gap-2">
+                <a href="/attendance-requests" class="btn-primary px-4">Xử lý ngay</a>
+                <button type="button" id="l-carry" class="btn-outline-brand">Chuyển sang kỳ sau</button>
+            </div>
+        </div>
+    </form>
+    <div class="dash-card p-5">
+        <h2 class="font-bold">Các kỳ đã chốt</h2>
+        <ul id="l-list" class="mt-3 space-y-2 text-sm"></ul>
+    </div>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/js/attendance-common.js"></script>
+<script src="/static/js/attendance-adjust.js"></script>
+{% endblock %}

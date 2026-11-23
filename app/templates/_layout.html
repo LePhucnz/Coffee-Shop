@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ title }} - QL Ca Làm</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>☕</text></svg>">
+    <script src="/static/js/api.js"></script>
+</head>
+<body class="bg-[#fbf8f4] text-[#18181b] min-h-screen flex selection:bg-amber-100 selection:text-amber-900">
+
+    <!-- SIDEBAR (Dark Rich Coffee Espresso Theme) -->
+    <aside class="w-64 bg-[#1c1510] text-[#a19991] hidden md:flex flex-col justify-between shrink-0 min-h-screen p-5 border-r border-[#2d221a]">
+        <div>
+            <!-- Brand Logo -->
+            <a href="/dashboard" class="flex items-center gap-3 px-2 py-3 mb-6">
+                <div class="w-9 h-9 rounded-xl bg-[#cf6800] flex items-center justify-center text-white shadow-md shadow-orange-600/30">
+                    <svg class="w-5 h-5 fill-current" viewBox="0 0 24 24">
+                        <path d="M2 21h18v-2H2v2zM20 8h-2V5h2c1.1 0 2 .9 2 2v1c0 1.1-.9 2-2 2zm0-5H4c-1.1 0-2 .9-2 2v10c0 2.2 1.8 4 4 4h10c2.2 0 4-1.8 4-4v-3h2c2.2 0 4-1.8 4-4V7c0-2.2-1.8-4-4-4zm-4 12c0 1.1-.9 2-2 2H6c-1.1 0-2-.9-2-2V5h12v10z"/>
+                    </svg>
+                </div>
+                <span class="text-xl font-bold tracking-tight text-white">QL Ca Làm</span>
+            </a>
+
+            <!-- Navigation Links -->
+            <nav class="space-y-1.5">
+                <a href="/dashboard" class="sidebar-link {% if active == 'dashboard' %}active{% endif %}">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <rect x="3" y="3" width="7" height="7" rx="1.5"></rect>
+                        <rect x="14" y="3" width="7" height="7" rx="1.5"></rect>
+                        <rect x="14" y="14" width="7" height="7" rx="1.5"></rect>
+                        <rect x="3" y="14" width="7" height="7" rx="1.5"></rect>
+                    </svg>
+                    <span>Tổng quan</span>
+                    {% if active == 'dashboard' %}<span class="sidebar-indicator"></span>{% endif %}
+                </a>
+
+                <a href="/employees" class="sidebar-link admin-only {% if active == 'employees' %}active{% endif %}">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"></path>
+                        <circle cx="9" cy="7" r="4"></circle>
+                        <path d="M23 21v-2a4 4 0 00-3-3.87"></path>
+                        <path d="M16 3.13a4 4 0 010 7.75"></path>
+                    </svg>
+                    <span>Nhân sự</span>
+                    {% if active == 'employees' %}<span class="sidebar-indicator"></span>{% endif %}
+                </a>
+
+                <a href="/contracts" class="sidebar-link admin-only {% if active == 'contracts' %}active{% endif %}">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"></path>
+                        <polyline points="14 2 14 8 20 8"></polyline>
+                        <line x1="8" y1="13" x2="16" y2="13"></line>
+                        <line x1="8" y1="17" x2="16" y2="17"></line>
+                    </svg>
+                    <span>Hợp đồng</span>
+                    {% if active == 'contracts' %}<span class="sidebar-indicator"></span>{% endif %}
+                </a>
+
+                <a href="/profile" class="sidebar-link {% if active == 'profile' %}active{% endif %}">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"></path>
+                        <circle cx="12" cy="7" r="4"></circle>
+                    </svg>
+                    <span>Hồ sơ của tôi</span>
+                    {% if active == 'profile' %}<span class="sidebar-indicator"></span>{% endif %}
+                </a>
+
+                <!-- Sprint 4: Xếp ca (Manager), Đăng ký ca (Staff), Lịch làm của tôi (tất cả) -->
+                <a href="/schedule" class="sidebar-link admin-only {% if active == 'schedule' %}active{% endif %}">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                        <line x1="16" y1="2" x2="16" y2="6"></line>
+                        <line x1="8" y1="2" x2="8" y2="6"></line>
+                        <line x1="3" y1="10" x2="21" y2="10"></line>
+                    </svg>
+                    <span>Xếp ca</span>
+                    {% if active == 'schedule' %}<span class="sidebar-indicator"></span>{% endif %}
+                </a>
+
+                <a href="/shift-registration" class="sidebar-link staff-only {% if active == 'shift-registration' %}active{% endif %}">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <path d="M9 11l3 3L22 4"></path>
+                        <path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"></path>
+                    </svg>
+                    <span>Đăng ký ca</span>
+                    {% if active == 'shift-registration' %}<span class="sidebar-indicator"></span>{% endif %}
+                </a>
+
+                <a href="/my-schedule" class="sidebar-link {% if active == 'my-schedule' %}active{% endif %}">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <circle cx="12" cy="12" r="9"></circle>
+                        <polyline points="12 7 12 12 15 14"></polyline>
+                    </svg>
+                    <span>Lịch làm của tôi</span>
+                    <span id="nav-notif-count" class="hidden ml-auto min-w-[20px] h-5 px-1.5 rounded-full bg-[#dc2626] text-white text-[11px] font-bold flex items-center justify-center"></span>
+                    {% if active == 'my-schedule' %}<span class="sidebar-indicator"></span>{% endif %}
+                </a>
+
+                <!-- Sprint 5: Chấm công (Staff), Quản lý chấm công (Manager) -->
+                <a href="/attendance" class="sidebar-link {% if active == 'attendance' %}active{% endif %}">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"></path>
+                        <circle cx="12" cy="10" r="3"></circle>
+                    </svg>
+                    <span>Chấm công</span>
+                    {% if active == 'attendance' %}<span class="sidebar-indicator"></span>{% endif %}
+                </a>
+
+                <a href="/attendance-history" class="sidebar-link {% if active == 'attendance-history' %}active{% endif %}">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <path d="M3 3v5h5"></path>
+                        <path d="M3.05 13A9 9 0 106 5.3L3 8"></path>
+                        <polyline points="12 7 12 12 15 14"></polyline>
+                    </svg>
+                    <span>Lịch sử công</span>
+                    {% if active == 'attendance-history' %}<span class="sidebar-indicator"></span>{% endif %}
+                </a>
+
+                <a href="/attendance-manage" class="sidebar-link admin-only {% if active == 'attendance-manage' %}active{% endif %}">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <path d="M9 17v-6M13 17V7M17 17v-3"></path>
+                        <rect x="3" y="3" width="18" height="18" rx="2"></rect>
+                    </svg>
+                    <span>Quản lý chấm công</span>
+                    {% if active == 'attendance-manage' %}<span class="sidebar-indicator"></span>{% endif %}
+                </a>
+
+                <a href="/attendance-requests" class="sidebar-link admin-only {% if active == 'attendance-requests' %}active{% endif %}">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"></path>
+                    </svg>
+                    <span>Yêu cầu bù/sửa công</span>
+                    <span id="nav-attendance-requests" class="hidden ml-auto min-w-[20px] h-5 px-1.5 rounded-full bg-[#dc2626] text-white text-[11px] font-bold flex items-center justify-center"></span>
+                    {% if active == 'attendance-requests' %}<span class="sidebar-indicator"></span>{% endif %}
+                </a>
+
+                <a href="/attendance-settings" class="sidebar-link admin-only {% if active == 'attendance-settings' %}active{% endif %}">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <circle cx="12" cy="12" r="3"></circle>
+                        <path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 11-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 11-4 0v-.09a1.65 1.65 0 00-1-1.51 1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 11-2.83-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 110-4h.09a1.65 1.65 0 001.51-1 1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 112.83-2.83l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 114 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 112.83 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 110 4h-.09a1.65 1.65 0 00-1.51 1z"></path>
+                    </svg>
+                    <span>Cài đặt chấm công</span>
+                    {% if active == 'attendance-settings' %}<span class="sidebar-indicator"></span>{% endif %}
+                </a>
+
+                <a href="/attendance-help" class="sidebar-link {% if active == 'attendance-help' %}active{% endif %}">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <path d="M9.09 9a3 3 0 015.83 1c0 2-3 3-3 3"></path>
+                        <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                    </svg>
+                    <span>Trợ giúp</span>
+                    {% if active == 'attendance-help' %}<span class="sidebar-indicator"></span>{% endif %}
+                </a>
+
+                <!-- Sprint 6: Tính lương (Manager), Phiếu lương (tất cả), Cài đặt lương (Manager) -->
+                <a href="/payroll" class="sidebar-link admin-only {% if active == 'payroll' %}active{% endif %}">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <rect x="4" y="2" width="16" height="20" rx="2"></rect>
+                        <line x1="8" y1="6" x2="16" y2="6"></line>
+                        <line x1="16" y1="14" x2="16" y2="18"></line>
+                        <path d="M16 10h.01M12 10h.01M8 10h.01M12 14h.01M8 14h.01M12 18h.01M8 18h.01"></path>
+                    </svg>
+                    <span>Tính lương</span>
+                    {% if active == 'payroll' %}<span class="sidebar-indicator"></span>{% endif %}
+                </a>
+
+                <a href="/my-payslips" class="sidebar-link {% if active == 'my-payslips' %}active{% endif %}">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <rect x="2" y="6" width="20" height="12" rx="2"></rect>
+                        <circle cx="12" cy="12" r="2.5"></circle>
+                        <path d="M6 12h.01M18 12h.01"></path>
+                    </svg>
+                    <span>Phiếu lương</span>
+                    {% if active == 'my-payslips' %}<span class="sidebar-indicator"></span>{% endif %}
+                </a>
+
+                <a href="/payroll-settings" class="sidebar-link admin-only {% if active == 'payroll-settings' %}active{% endif %}">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <line x1="4" y1="21" x2="4" y2="14"></line>
+                        <line x1="4" y1="10" x2="4" y2="3"></line>
+                        <line x1="12" y1="21" x2="12" y2="12"></line>
+                        <line x1="12" y1="8" x2="12" y2="3"></line>
+                        <line x1="20" y1="21" x2="20" y2="16"></line>
+                        <line x1="20" y1="12" x2="20" y2="3"></line>
+                        <line x1="1" y1="14" x2="7" y2="14"></line>
+                        <line x1="9" y1="8" x2="15" y2="8"></line>
+                        <line x1="17" y1="16" x2="23" y2="16"></line>
+                    </svg>
+                    <span>Cài đặt lương</span>
+                    {% if active == 'payroll-settings' %}<span class="sidebar-indicator"></span>{% endif %}
+                </a>
+            </nav>
+        </div>
+
+        <!-- Bottom User Profile Card -->
+        <div class="bg-[#281e17] rounded-2xl p-3.5 border border-white/5 flex items-center gap-3">
+            <div id="nav-avatar" class="w-9 h-9 rounded-full bg-[#cf6800] text-white flex items-center justify-center font-bold text-sm shrink-0">
+                ?
+            </div>
+            <div class="min-w-0 flex-1">
+                <div id="nav-user-name" class="text-sm font-bold text-white truncate">Đang tải...</div>
+                <div id="nav-user-role" class="text-[11px] text-[#a19991] truncate">---</div>
+            </div>
+            <button type="button" onclick="API.logout()" title="Đăng xuất" class="text-stone-500 hover:text-stone-300 text-xs">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path>
+                </svg>
+            </button>
+        </div>
+    </aside>
+
+    <!-- MAIN CONTENT AREA -->
+    <main class="flex-1 min-w-0 p-4 sm:p-8 lg:p-10 overflow-y-auto">
+        <!-- Mobile top bar -->
+        <div class="md:hidden flex items-center justify-between mb-4">
+            <a href="/dashboard" class="font-bold text-lg">☕ QL Ca Làm</a>
+            <div class="flex flex-wrap justify-end gap-x-3 gap-y-1 text-sm font-semibold">
+                <a href="/employees" class="admin-only text-[#cf6800]">Nhân sự</a>
+                <a href="/contracts" class="admin-only text-[#cf6800]">Hợp đồng</a>
+                <a href="/schedule" class="admin-only text-[#cf6800]">Xếp ca</a>
+                <a href="/shift-registration" class="staff-only text-[#cf6800]">Đăng ký ca</a>
+                <a href="/my-schedule" class="text-[#cf6800]">Lịch</a>
+                <a href="/attendance" class="text-[#cf6800]">Chấm công</a>
+                <a href="/attendance-history" class="text-[#cf6800]">Lịch sử công</a>
+                <a href="/attendance-manage" class="admin-only text-[#cf6800]">QL chấm công</a>
+                <a href="/attendance-requests" class="admin-only text-[#cf6800]">Yêu cầu công</a>
+                <a href="/attendance-help" class="text-[#cf6800]">Trợ giúp</a>
+                <a href="/payroll" class="admin-only text-[#cf6800]">Tính lương</a>
+                <a href="/my-payslips" class="text-[#cf6800]">Phiếu lương</a>
+                <a href="/profile" class="text-[#cf6800]">Hồ sơ</a>
+            </div>
+        </div>
+
+        {% block content %}{% endblock %}
+    </main>
+
+    <!-- Toast container -->
+    <div id="toast-container"></div>
+
+    <script data-admin-only="{{ '1' if admin_only else '0' }}">
+        const ADMIN_ONLY_PAGE = document.currentScript.dataset.adminOnly === "1";
+        document.addEventListener("DOMContentLoaded", () => {
+            const user = API.requireLogin();
+            if (!user) return;
+            API.renderUserCard(user);
+            if (ADMIN_ONLY_PAGE && !API.isAdmin()) {
+                window.location.href = "/profile";
+            }
+        });
+    </script>
+    {% block scripts %}{% endblock %}
+</body>
+</html>

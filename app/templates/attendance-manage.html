@@ -1,0 +1,141 @@
+{% extends "_layout.html" %}
+
+{% block content %}
+<!-- Màn 07 Theo ngày + Màn 08 Theo kỳ (FR-11B) -->
+<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-[#f0e9df]">
+    <div>
+        <h1 class="text-3xl font-extrabold text-[#18181b] tracking-tight">Quản lý chấm công</h1>
+        <p id="page-sub" class="text-sm text-[#71717a] mt-1 font-medium">Toàn bộ ca được phân trong ngày, bất thường hiển thị trước</p>
+    </div>
+    <a href="/attendance-requests" class="btn-primary px-5 text-center self-start">Yêu cầu chờ duyệt (<span id="pending-count">0</span>)</a>
+</div>
+
+<div class="flex gap-6 mt-6 border-b border-[#f0e9df] text-sm font-bold">
+    <button type="button" data-mode="ngay" class="mode-btn pb-2 border-b-2 border-[#cf6800] text-[#cf6800]">Theo ngày</button>
+    <button type="button" data-mode="ky" class="mode-btn pb-2 border-b-2 border-transparent text-[#71717a]">Theo kỳ</button>
+</div>
+
+<!-- Thẻ số liệu -->
+<div id="cards-day" class="grid grid-cols-2 lg:grid-cols-5 gap-3 mt-6">
+    <div class="dash-card p-4"><div class="text-[11px] font-bold uppercase text-[#71717a]">Ca được phân</div><div id="c-total" class="text-2xl font-extrabold mt-1">-</div></div>
+    <div class="dash-card p-4"><div class="text-[11px] font-bold uppercase text-[#71717a]">Đủ vào / ra</div><div id="c-full" class="text-2xl font-extrabold mt-1">-</div></div>
+    <div class="dash-card p-4"><div class="text-[11px] font-bold uppercase text-amber-700">Đi trễ</div><div id="c-late" class="text-2xl font-extrabold text-amber-700 mt-1">-</div></div>
+    <div class="dash-card p-4"><div class="text-[11px] font-bold uppercase text-[#dc2626]">Vắng</div><div id="c-absent" class="text-2xl font-extrabold text-[#dc2626] mt-1">-</div></div>
+    <div class="dash-card p-4"><div class="text-[11px] font-bold uppercase text-orange-700">Chưa check-out</div><div id="c-missing" class="text-2xl font-extrabold text-orange-700 mt-1">-</div></div>
+</div>
+<div id="cards-period" class="hidden grid grid-cols-1 sm:grid-cols-3 gap-3 mt-6">
+    <div class="dash-card p-4"><div class="text-[11px] font-bold uppercase text-[#71717a]">Tổng giờ đã xác nhận</div><div id="p-hours" class="text-2xl font-extrabold mt-1">-</div></div>
+    <div class="dash-card p-4"><div class="text-[11px] font-bold uppercase text-sky-700">Vượt ca chờ duyệt</div><div id="p-ot" class="text-2xl font-extrabold text-sky-700 mt-1">-</div></div>
+    <div class="dash-card p-4"><div class="text-[11px] font-bold uppercase text-orange-700">Ca thiếu giờ ra</div><div id="p-missing" class="text-2xl font-extrabold text-orange-700 mt-1">-</div></div>
+</div>
+
+<!-- Bộ lọc -->
+<div class="dash-card p-4 mt-6 space-y-3">
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+        <label class="text-xs font-bold text-[#52525b]">Tên / mã nhân viên
+            <input type="text" id="f-keyword" class="form-input mt-1 !py-2" placeholder="Tìm tên, NV...">
+        </label>
+        <label class="text-xs font-bold text-[#52525b]">Vị trí
+            <select id="f-position" class="form-input mt-1 !py-2"><option value="">Tất cả công việc</option></select>
+        </label>
+        <label id="f-shift-wrap" class="text-xs font-bold text-[#52525b]">Ca
+            <select id="f-shift" class="form-input mt-1 !py-2"><option value="">Tất cả ca</option></select>
+        </label>
+        <label id="f-day-wrap" class="text-xs font-bold text-[#52525b]">Ngày
+            <input type="date" id="f-day" class="form-input mt-1 !py-2">
+        </label>
+        <label id="f-from-wrap" class="hidden text-xs font-bold text-[#52525b]">Từ ngày
+            <input type="date" id="f-from" class="form-input mt-1 !py-2">
+        </label>
+        <label id="f-to-wrap" class="hidden text-xs font-bold text-[#52525b]">Đến ngày
+            <input type="date" id="f-to" class="form-input mt-1 !py-2">
+        </label>
+    </div>
+    <div class="flex flex-wrap items-end gap-3">
+        <label class="text-xs font-bold text-[#52525b]">Trạng thái
+            <select id="f-status" class="form-input mt-1 !py-2">
+                <option value="">Tất cả</option>
+                <option value="dung_gio">Đúng giờ</option>
+                <option value="di_tre">Đi trễ</option>
+                <option value="ve_som">Về sớm</option>
+                <option value="vang_mat">Vắng</option>
+                <option value="chua_check_in">Chưa check-in</option>
+                <option value="chua_check_out">Chưa check-out</option>
+                <option value="vuot_ca">Vượt ca</option>
+                <option value="da_dieu_chinh">Đã điều chỉnh</option>
+                <option value="cho_duyet">Có yêu cầu chờ duyệt</option>
+            </select>
+        </label>
+        <div class="flex flex-wrap gap-2" id="flag-chips">
+            <button type="button" data-flag="ngoai_vi_tri" class="flag-chip px-3 py-1.5 rounded-full border border-[#e6dfd5] bg-white text-xs font-bold">Ngoài phạm vi</button>
+            <button type="button" data-flag="khong_dinh_vi" class="flag-chip px-3 py-1.5 rounded-full border border-[#e6dfd5] bg-white text-xs font-bold">Thiếu GPS</button>
+            <button type="button" data-flag="thiet_bi_trung" class="flag-chip px-3 py-1.5 rounded-full border border-[#e6dfd5] bg-white text-xs font-bold">Cùng thiết bị</button>
+            <button type="button" data-flag="vuot_han_muc" class="flag-chip px-3 py-1.5 rounded-full border border-[#e6dfd5] bg-white text-xs font-bold">Vượt hạn mức</button>
+        </div>
+    </div>
+    <div class="flex flex-wrap items-center gap-3 pt-1">
+        <button type="button" id="btn-export" class="btn-primary px-5">Xuất Excel (.xlsx)</button>
+        <button type="button" id="btn-refresh" class="btn-outline-brand">Làm mới</button>
+        <a href="/attendance-adjust?mode=bulk" id="btn-bulk" class="btn-outline-brand">Điều chỉnh hàng loạt</a>
+        <a href="/attendance-adjust?mode=lock" class="btn-outline-brand">Chốt kỳ công</a>
+        <span id="updated-at" class="text-xs text-[#71717a]"></span>
+    </div>
+</div>
+
+<!-- Bảng theo ngày (màn 07) -->
+<section id="view-day" class="dash-card p-5 mt-6">
+    <div class="overflow-x-auto">
+        <table class="w-full text-sm">
+            <thead>
+                <tr class="bg-[#eee7db]/80 text-xs font-bold text-[#52525b] text-left">
+                    <th class="py-2 px-2 rounded-l-lg">Nhân viên</th>
+                    <th class="py-2 px-2">Công việc</th>
+                    <th class="py-2 px-2">Ca được phân</th>
+                    <th class="py-2 px-2">Vào / Ra</th>
+                    <th class="py-2 px-2">Trễ (phút)</th>
+                    <th class="py-2 px-2">Trạng thái</th>
+                    <th class="py-2 px-2">Cờ / Vị trí</th>
+                    <th class="py-2 px-2 rounded-r-lg">Thao tác</th>
+                </tr>
+            </thead>
+            <tbody id="day-rows" class="divide-y divide-[#f5efe6]">
+                <tr><td colspan="8" class="py-6 text-center text-[#71717a]">Đang tải...</td></tr>
+            </tbody>
+        </table>
+    </div>
+    <div class="flex flex-wrap items-center justify-between gap-3 mt-4">
+        <span id="page-info" class="text-xs text-[#71717a]"></span>
+        <div id="pager" class="flex gap-2"></div>
+    </div>
+</section>
+
+<!-- Bảng theo kỳ (màn 08) -->
+<section id="view-period" class="hidden dash-card p-5 mt-6">
+    <div class="flex flex-wrap gap-2 text-[11px] font-bold mb-3">
+        <span class="px-2 py-0.5 rounded bg-emerald-50 text-emerald-700">Đ: Đúng giờ</span>
+        <span class="px-2 py-0.5 rounded bg-amber-50 text-amber-700">T: Trễ · S: Sớm</span>
+        <span class="px-2 py-0.5 rounded bg-red-50 text-red-700">V: Vắng</span>
+        <span class="px-2 py-0.5 rounded bg-stone-100 text-stone-700">ĐC: Đã điều chỉnh</span>
+        <span class="px-2 py-0.5 rounded bg-orange-50 text-orange-700">?: Thiếu giờ ra</span>
+        <span class="px-2 py-0.5 rounded bg-stone-100 text-stone-500">Hủy: Ca hủy</span>
+    </div>
+    <div class="overflow-x-auto">
+        <table class="text-xs min-w-full">
+            <thead id="period-head"></thead>
+            <tbody id="period-rows" class="divide-y divide-[#f5efe6]"></tbody>
+        </table>
+    </div>
+    <p class="text-xs text-[#71717a] mt-3">Bấm vào ô để mở chi tiết ca. Nhân viên đã nghỉ việc vẫn giữ lịch sử, hiển thị cuối bảng.</p>
+</section>
+
+<div class="dash-card p-5 mt-6 text-xs text-[#52525b] space-y-1">
+    <h2 class="text-sm font-bold text-[#18181b]">Phạm vi dữ liệu &amp; xuất bảng</h2>
+    <p>Nhân viên đã nghỉ không xuất hiện trong ngày đang vận hành nhưng vẫn giữ lịch sử ở Theo kỳ. Bộ lọc cờ và trạng thái không thay đổi bản ghi gốc.</p>
+    <p>File Excel xuất đúng các dòng đã lọc kèm cột Đã điều chỉnh. Ca chưa check-out chưa được tính giờ công.</p>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/js/attendance-common.js"></script>
+<script src="/static/js/attendance-manage.js"></script>
+{% endblock %}

@@ -1,0 +1,131 @@
+{% extends "_layout.html" %}
+
+{% block content %}
+<!-- Màn 09: Hàng đợi & duyệt yêu cầu bù/sửa công (FR-11A) -->
+<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-[#f0e9df]">
+    <div>
+        <h1 class="text-3xl font-extrabold text-[#18181b] tracking-tight">Yêu cầu bù / sửa công</h1>
+        <p class="text-sm text-[#71717a] mt-1 font-medium">Cũ nhất lên trước. Mỗi quyết định đều được ghi nhật ký và báo cho nhân viên.</p>
+    </div>
+    <a href="/attendance-manage" class="btn-outline-brand self-start">Quay lại bảng chấm công</a>
+</div>
+
+<div class="dash-card p-4 mt-6 grid grid-cols-1 sm:grid-cols-3 gap-3">
+    <label class="text-xs font-bold text-[#52525b]">Trạng thái
+        <select id="f-status" class="form-input mt-1 !py-2">
+            <option value="dang_mo">Đang mở (chờ duyệt + cần bổ sung)</option>
+            <option value="cho_duyet">Chờ duyệt</option>
+            <option value="can_bo_sung">Cần bổ sung</option>
+            <option value="da_duyet">Đã duyệt</option>
+            <option value="tu_choi">Từ chối</option>
+            <option value="da_huy">Đã hủy</option>
+            <option value="het_han">Hết hạn</option>
+            <option value="tat_ca">Tất cả</option>
+        </select>
+    </label>
+    <label class="text-xs font-bold text-[#52525b]">Nhân viên
+        <select id="f-employee" class="form-input mt-1 !py-2"><option value="">Tất cả nhân viên</option></select>
+    </label>
+    <label class="text-xs font-bold text-[#52525b]">Loại yêu cầu
+        <select id="f-type" class="form-input mt-1 !py-2"><option value="">Tất cả 6 loại</option></select>
+    </label>
+</div>
+
+<div class="mt-4 rounded-xl bg-amber-50 border border-amber-200 px-4 py-3 text-sm text-amber-800">
+    <strong>Hạn duyệt: 3 ngày hoặc trước chốt kỳ, lấy mốc sớm hơn.</strong>
+    Hệ thống nhắc Quản lý khi còn 24 giờ. Không tự phê duyệt khi hết hạn.
+</div>
+
+<div class="dash-card p-5 mt-4 overflow-x-auto">
+    <table class="w-full text-sm">
+        <thead>
+            <tr class="bg-[#eee7db]/80 text-xs font-bold text-[#52525b] text-left">
+                <th class="py-2 px-2 rounded-l-lg">Ngày gửi</th>
+                <th class="py-2 px-2">Nhân viên / Ca</th>
+                <th class="py-2 px-2">Loại yêu cầu</th>
+                <th class="py-2 px-2">Trạng thái</th>
+                <th class="py-2 px-2">Hạn xử lý</th>
+                <th class="py-2 px-2 rounded-r-lg">Thao tác</th>
+            </tr>
+        </thead>
+        <tbody id="request-rows" class="divide-y divide-[#f5efe6]">
+            <tr><td colspan="6" class="py-6 text-center text-[#71717a]">Đang tải...</td></tr>
+        </tbody>
+    </table>
+</div>
+
+<!-- Chi tiết + ra quyết định -->
+<div id="detail-wrap" class="hidden grid grid-cols-1 lg:grid-cols-3 gap-6 mt-6">
+    <div class="lg:col-span-2 space-y-4">
+        <div class="dash-card p-5">
+            <h2 id="d-title" class="text-lg font-extrabold"></h2>
+            <div id="d-employee" class="text-sm font-bold mt-1"></div>
+            <div id="d-shift" class="text-xs text-[#71717a]"></div>
+            <div id="d-flags" class="flex flex-wrap gap-2 mt-2"></div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-4">
+                <div class="rounded-xl bg-[#faf6f0] p-4">
+                    <div class="font-bold mb-1">Bản gốc</div>
+                    <div id="d-original" class="text-sm text-[#52525b] space-y-0.5"></div>
+                </div>
+                <div class="rounded-xl bg-[#faf6f0] p-4">
+                    <div class="font-bold mb-1">Đề xuất nhân viên</div>
+                    <div id="d-proposal" class="text-sm text-[#52525b] space-y-0.5"></div>
+                </div>
+            </div>
+            <div class="mt-4">
+                <div class="text-xs font-bold uppercase text-[#52525b]">Lý do gửi</div>
+                <p id="d-reason" class="text-sm mt-1"></p>
+                <div id="d-question" class="hidden text-xs text-sky-700 mt-2"></div>
+            </div>
+            <div id="d-files" class="flex flex-wrap gap-2 mt-3"></div>
+        </div>
+
+        <div class="dash-card p-5">
+            <h3 class="font-bold">Dữ liệu kiểm tra · chỉ Quản lý</h3>
+            <div id="d-location" class="text-xs text-[#52525b] mt-2 space-y-0.5"></div>
+            <p class="text-[11px] text-[#71717a] mt-2">Không chia sẻ tọa độ, IP hay thiết bị trên màn nhân viên. Cờ chỉ phục vụ xác minh, không mặc định gian lận.</p>
+        </div>
+
+        <div class="dash-card p-5">
+            <h3 class="font-bold">Lịch sử gần đây của nhân viên</h3>
+            <ul id="d-recent" class="text-xs text-[#52525b] mt-2 space-y-1"></ul>
+            <a id="d-detail-link" href="#" class="inline-block mt-3 text-xs font-bold text-[#cf6800] hover:underline">Mở chi tiết công &amp; nhật ký</a>
+        </div>
+    </div>
+
+    <div class="space-y-4">
+        <div id="decision-card" class="dash-card p-5 space-y-3">
+            <h3 class="font-bold">Ra quyết định</h3>
+            <label class="block text-xs font-bold text-[#52525b]">Ghi chú duyệt
+                <input type="text" id="a-note" class="form-input mt-1" placeholder="Ví dụ: xác nhận bàn giao ca">
+            </label>
+            <label class="flex items-center gap-2 text-xs font-semibold text-[#52525b]">
+                <input type="checkbox" id="a-waive"> Miễn phạt trễ/sớm cho ca này (cần ghi chú)
+            </label>
+            <button type="button" id="btn-approve" class="btn-primary w-full">Duyệt yêu cầu</button>
+            <hr class="border-[#f0e9df]">
+            <label class="block text-xs font-bold text-[#52525b]">Lý do từ chối *
+                <input type="text" id="a-reject" class="form-input mt-1" placeholder="Nhập lý do cụ thể...">
+            </label>
+            <button type="button" id="btn-reject" class="btn-outline-brand w-full">Từ chối</button>
+            <hr class="border-[#f0e9df]">
+            <label class="block text-xs font-bold text-[#52525b]">Câu hỏi / thông tin cần bổ sung *
+                <input type="text" id="a-ask" class="form-input mt-1" placeholder="Bạn có bảng bàn giao xác nhận giờ ra không?">
+            </label>
+            <button type="button" id="btn-ask" class="btn-outline-brand w-full">Yêu cầu bổ sung</button>
+            <p id="decision-note" class="text-[11px] text-[#71717a]"></p>
+        </div>
+        <div class="rounded-xl bg-emerald-50 border border-emerald-200 p-4 text-xs text-emerald-800">
+            <strong>Duyệt thì bản ghi chuyển Đã điều chỉnh.</strong> Hệ thống tính lại giờ, đi trễ, về sớm; giữ nguyên bản gốc và ghi nhật ký trước/sau.
+        </div>
+        <div class="rounded-xl bg-[#faf6f0] border border-[#f0e9df] p-4 text-xs text-[#52525b]">
+            <strong>Kiểm soát quyền phê duyệt:</strong> không tự duyệt yêu cầu của chính mình. Yêu cầu của Quản lý chuyển cho Chủ quán (Admin).
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/js/attendance-common.js"></script>
+<script src="/static/js/attendance-requests.js"></script>
+{% endblock %}
